@@ -8,6 +8,8 @@ import { QUESTS, JOURNAL, residentById, type ResidentId } from './story';
 import { DISTRICT_NAMES } from './map';
 import type { Renderer } from './render';
 import { getVolume, setVolume, pick, out } from './audio';
+import { SkyView } from './skyView';
+import { CONSTELLATIONS } from './sky';
 
 /** Мини-игра на маслобойне: стрелка бегает по шкале, нужно поймать золотую зону. */
 interface PressGame { round: number; hits: number; pos: number; dir: number; zone: number; width: number; marks: string[]; endT: number }
@@ -26,6 +28,7 @@ export class UI {
 
   private menuMode: 'main' | 'pause' = 'main';
   private press: PressGame | null = null;
+  private sky = new SkyView(() => this.closeModal());
 
   constructor(private r: Renderer, private actions: MenuActions) {
     addEventListener('keydown', (e) => {
@@ -42,7 +45,7 @@ export class UI {
     // текст листается кликом в любом месте экрана
     addEventListener('pointerdown', (e) => {
       if (!st.dialog.length || st.menu) return;
-      if ((e.target as HTMLElement).closest('button, #modal')) return;
+      if ((e.target as HTMLElement).closest('button, #modal, #starsky')) return;
       nextLine();
     });
     $('menu').addEventListener('click', (e) => {
@@ -144,18 +147,16 @@ export class UI {
 
   private renderModal() {
     const m = st.modal;
-    if (!m) return;
+    if (!m || m.kind === 'sky') return;
     let title = '', sub = '', body = '';
     if (m.kind === 'shop') {
-      if (m.station === 'bench') {
-        title = 'Верстак';
-        sub = 'Здесь чинят и улучшают ручной фонарь.';
-      } else {
-        const r = residentById(m.station as ResidentId);
-        title = `${r.name} — ${r.station}`;
-        sub = `«${this.greeting}»`;
-      }
-      body = UPGRADES.filter((u) => u.station === m.station).map((u) => {
+      const r = residentById(m.station as ResidentId);
+      title = `${r.name} — ${r.station}`;
+      sub = `«${this.greeting}»`;
+      const items = UPGRADES.filter((u) => u.station === m.station);
+      // всё, чему учит житель, — в его созвездии на небе; в лавке — только особые вещи
+      const sky = `<div class="shop-sky">Мои уроки — на звёздном небе, в созвездии «${CONSTELLATIONS[r.id].name}». Посмотри в телескоп.</div>`;
+      body = sky + items.map((u) => {
         const block = buyBlock(u);
         const maxed = st.up[u.id] >= u.max;
         const lvl = u.max > 1 ? `${st.up[u.id]}/${u.max}` : maxed ? '✓' : '';
@@ -324,8 +325,11 @@ export class UI {
     const key = st.modal ? JSON.stringify(st.modal) : '';
     if (key !== this.modalKey) {
       this.modalKey = key;
-      $('modal').hidden = !st.modal;
-      if (st.modal?.kind === 'shop' && st.modal.station !== 'bench') {
+      const isSky = st.modal?.kind === 'sky';
+      $('modal').hidden = !st.modal || isSky;
+      if (isSky) this.sky.open();
+      else this.sky.close();
+      if (st.modal?.kind === 'shop') {
         const chat = residentById(st.modal.station as ResidentId).chat;
         this.greeting = chat[Math.floor(Math.random() * chat.length)];
       }
@@ -368,6 +372,7 @@ export class UI {
     $('ready').hidden = night || readyQuests() === 0;
     $('guide-btn').hidden = !st.hasJournal;
     $('journal-new').hidden = !st.journalNew;
-    if (st.modal && st.modal.kind !== 'press') this.renderModal();
+    if (st.modal?.kind === 'sky') this.sky.refresh();
+    else if (st.modal && st.modal.kind !== 'press') this.renderModal();
   }
 }

@@ -10,7 +10,7 @@ export interface Station { id: StationId; x: number; y: number; w: number; h: nu
 
 /** Мебель жителей появляется, только когда житель переехал. */
 export const STATIONS: Station[] = [
-  { id: 'bench', x: 1, y: 0, w: 2, h: 1, npc: { x: 2, y: 1.6 } },
+  { id: 'scope', x: 1, y: 0, w: 1, h: 1, npc: { x: 1.5, y: 1.6 } },
   { id: 'agata', x: 9, y: 2, w: 1, h: 2, npc: { x: 8.2, y: 3 } },
   { id: 'timofey', x: 9, y: 6, w: 1, h: 1, npc: { x: 8.2, y: 6.6 } },
   { id: 'nika', x: 4, y: 3, w: 2, h: 1, npc: { x: 5, y: 4.7 } },

@@ -5,7 +5,7 @@ import { toScreen } from './iso';
 import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, stationCenter, type Station } from './room';
 import { st, stationOpen, questVisible, questState, type Light } from './game';
 import { QUESTS, residentById, type ResidentId } from './story';
-import { hash, diamond, drawPerson, drawSpark, drawBench, drawPlanter, drawAnvil, drawMapTable, drawMailbag, drawPerch, drawOven, drawFireplace } from './draw';
+import { hash, diamond, drawPerson, drawTelescope, drawPlanter, drawAnvil, drawMapTable, drawMailbag, drawPerch, drawOven, drawFireplace } from './draw';
 import type { View } from './render';
 
 const WALL_H = 52;
@@ -59,13 +59,12 @@ export class RoomView implements View {
       const g = new Graphics();
       const c = stationCenter(s);
       this.place(g, s.x, s.y, c.x + c.y);
-      if (s.id === 'bench') drawBench(g);
       if (s.id === 'agata') drawPlanter(g);
       if (s.id === 'timofey') drawAnvil(g);
       if (s.id === 'nika') drawMapTable(g);
       if (s.id === 'seva') drawMailbag(g);
       let npc: Graphics | null = null;
-      if (s.id !== 'bench' && s.id !== 'filin') {
+      if (s.id !== 'scope' && s.id !== 'filin') {
         npc = new Graphics();
         this.place(npc, s.npc.x, s.npc.y, s.npc.x + s.npc.y);
       }
@@ -83,6 +82,7 @@ export class RoomView implements View {
       f.g.visible = open;
       if (f.npc) f.npc.visible = open;
       if (!open) continue;
+      if (f.s.id === 'scope') drawTelescope(f.g.clear(), t);
       if (f.s.id === 'filin') drawPerch(f.g.clear(), t);
       if (f.s.id === 'mila') drawOven(f.g.clear(), t);
       if (f.npc) {

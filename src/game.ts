@@ -3,7 +3,7 @@
 // Цикл: мастерская → ночная смена (пока горит ручной фонарь) → снова мастерская.
 // Свет, улучшения, жители и заказы остаются навсегда; фонари, масло и урожай — только на одну ночь.
 
-import { W, H, BRIDGE, makeWorld, homeDoor, riverX, type Lamp, type LampKind, type Flower, type House } from './map';
+import { W, H, BRIDGE, PATH, STONE, makeWorld, homeDoor, riverX, type Lamp, type LampKind, type Flower, type House } from './map';
 import { screenDirToTile } from './iso';
 import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, SPAWN, stationCenter, type Station } from './room';
 import {
@@ -11,19 +11,13 @@ import {
   type ResidentId, type StationId, type NightStats, type Line, type Quest,
 } from './story';
 import * as sfx from './audio';
+import { STARS, CONSTELLATIONS, CONSTELLATION_BONUS, starById, type Stat, type Key, type Star, type Branch } from './sky';
 
 export const world = makeWorld();
 
 // ---------- улучшения ----------
 
-export type UpId =
-  | 'lens' | 'tank' | 'can' | 'boots'
-  | 'fert' | 'seeds'
-  | 'ladder' | 'lampTank' | 'wick' | 'bridge'
-  | 'map' | 'compass'
-  | 'rumor'
-  | 'vision' | 'glass'
-  | 'helper' | 'autopress';
+export type UpId = 'bridge' | 'map' | 'compass' | 'helper' | 'autopress';
 
 export interface Upgrade {
   id: UpId; station: StationId; name: string; desc: string;
@@ -31,34 +25,23 @@ export interface Upgrade {
   lock?: () => string | null;
 }
 
+/** Особые вещи у жителей. Всё, что просто «прибавляет цифры», — на звёздном небе (sky.ts). */
 export const UPGRADES: Upgrade[] = [
-  { id: 'tank', station: 'bench', name: 'Бак фонаря', desc: 'Смена длится на 10 секунд дольше', base: 15, mult: 1.9, max: 8 },
-  { id: 'lens', station: 'bench', name: 'Линза', desc: 'Ручной фонарь светит дальше', base: 12, mult: 2.0, max: 5 },
-  { id: 'can', station: 'bench', name: 'Бидон', desc: 'С собой в ночь +8 масла', base: 18, mult: 2.0, max: 6 },
-  { id: 'boots', station: 'bench', name: 'Сапоги', desc: 'Ходишь на 12% быстрее', base: 30, mult: 2.2, max: 4 },
-
-  { id: 'fert', station: 'agata', name: 'Удобрение', desc: 'Подсолнухи растут быстрее', base: 22, mult: 2.1, max: 6 },
-  { id: 'seeds', station: 'agata', name: 'Крупные семечки', desc: '+1 семечко с каждого подсолнуха', base: 38, mult: 2.4, max: 4 },
-
   { id: 'bridge', station: 'timofey', name: 'Починить мост', desc: 'Тимофей починит мост через реку — откроется дорога в деревню', base: 60, mult: 1.0, max: 1 },
-  { id: 'ladder', station: 'timofey', name: 'Лёгкая лестница', desc: 'Зажигаешь и подливаешь быстрее', base: 30, mult: 2.2, max: 3 },
-  { id: 'lampTank', station: 'timofey', name: 'Баки для фонарей', desc: 'В уличный фонарь влезает больше масла', base: 38, mult: 2.2, max: 6 },
-  { id: 'wick', station: 'timofey', name: 'Тонкий фитиль', desc: 'Уличные фонари тратят меньше масла', base: 52, mult: 2.3, max: 6 },
-
   { id: 'map', station: 'nika', name: 'Карта улицы', desc: 'В начале ночи видно, где стоят все фонари', base: 90, mult: 1.0, max: 1 },
   { id: 'compass', station: 'nika', name: 'Компас', desc: 'Стрелка показывает на ближайший тёмный фонарь', base: 120, mult: 1.0, max: 1 },
-
-  { id: 'rumor', station: 'seva', name: 'Добрые слухи', desc: 'Каждый фонарь даёт на 25% больше Света', base: 60, mult: 2.4, max: 5 },
-
-  { id: 'vision', station: 'filin', name: 'Совиное зрение', desc: 'В темноте видно чуть больше', base: 75, mult: 2.7, max: 3 },
-  { id: 'glass', station: 'filin', name: 'Чистые стёкла', desc: 'Уличные фонари светят шире', base: 68, mult: 2.4, max: 5 },
-
   {
     id: 'helper', station: 'mila', name: 'Подносчик', desc: 'Житель носит масло к фонарям и собирает урожай', base: 60, mult: 2.6, max: 4,
     lock: () => (st.up.helper >= st.movedIn.length ? 'Подносчиков не больше, чем жителей' : null),
   },
   { id: 'autopress', station: 'mila', name: 'Ворот для маслобойни', desc: 'Маслобойня сама отжимает семечки', base: 150, mult: 1.0, max: 1 },
 ];
+
+/** Старые улучшения-цифры (до звёздного неба): чтобы вернуть за них Свет из старых сохранений. */
+const OLD_UPS: Record<string, [number, number]> = {
+  tank: [15, 1.9], lens: [12, 2.0], can: [18, 2.0], boots: [30, 2.2], fert: [22, 2.1], seeds: [38, 2.4],
+  ladder: [30, 2.2], lampTank: [38, 2.2], wick: [52, 2.3], rumor: [60, 2.4], vision: [75, 2.7], glass: [68, 2.4],
+};
 
 const emptyUps = () => Object.fromEntries(UPGRADES.map((u) => [u.id, 0])) as Record<UpId, number>;
 const emptyNight = (): NightStats => ({ lit: [], harvested: 0, maxBurning: 0, lumens: 0, found: [], districts: [] });
@@ -96,12 +79,14 @@ export interface Cine {
   homeGlow: boolean;
   actors: Actor[];
 }
-export type Modal = { kind: 'shop'; station: StationId } | { kind: 'board' } | { kind: 'guide' } | { kind: 'press' } | { kind: 'start' } | null;
+export type Modal = { kind: 'shop'; station: StationId } | { kind: 'sky' } | { kind: 'board' } | { kind: 'guide' } | { kind: 'press' } | { kind: 'start' } | null;
 
 export const st = {
   // --- навсегда (сохраняется) ---
   lumens: 0,
   up: emptyUps(),
+  /** Зажжённые звёзды на небе (центр — Искра — горит всегда). */
+  stars: ['center'] as string[],
   /** Жители, к которым постучали (окно горит). */
   met: [] as ResidentId[],
   /** Жители, переехавшие в мастерскую. */
@@ -193,29 +178,94 @@ const bridgeEnd = (() => {
   return best;
 })();
 
+// ---------- звёздное небо ----------
+
+let skyVer = 0;
+let skyCache = { ver: -1, lv: {} as Partial<Record<Stat, number>>, keys: new Set<Key>(), done: [] as Branch[] };
+function sky() {
+  if (skyCache.ver === skyVer) return skyCache;
+  const lv: Partial<Record<Stat, number>> = {};
+  const keys = new Set<Key>();
+  for (const id of st.stars) {
+    const s = starById(id);
+    if (!s) continue;
+    for (const [k, v] of Object.entries(s.stats) as [Stat, number][]) lv[k] = (lv[k] ?? 0) + v;
+    if (s.key) keys.add(s.key);
+  }
+  const done = (Object.keys(CONSTELLATIONS) as Branch[]).filter((b) => STARS.every((s) => s.branch !== b || st.stars.includes(s.id)));
+  skyCache = { ver: skyVer, lv, keys, done };
+  return skyCache;
+}
+/** Уровень улучшения от зажжённых звёзд. */
+export const lv = (k: Stat) => sky().lv[k] ?? 0;
+export const hasKey = (k: Key) => sky().keys.has(k);
+/** Собранные целиком созвездия. */
+export const doneConstellations = () => sky().done;
+
+export const starLit = (id: string) => st.stars.includes(id);
+/** Рядом горит звезда — значит, эту можно зажечь. */
+export const starReachable = (s: Star) => s.links.some(starLit);
+export const branchOpen = (b: Branch) => b === 'core' || hasResident(b);
+export const starCost = (s: Star) =>
+  Math.ceil((6 + s.dist / 12) * (s.size === 'big' ? 1.8 : s.size === 'key' ? 3 : 1) * (1 + 0.05 * (st.stars.length - 1)));
+
+/** null — можно зажечь, иначе причина. */
+export function starBlock(s: Star): string | null {
+  if (starLit(s.id)) return 'Уже горит';
+  if (!branchOpen(s.branch)) return `Откроется, когда ${residentById(s.branch as ResidentId).name} переедет в мастерскую`;
+  if (!starReachable(s)) return 'Сначала зажги соседнюю звезду';
+  if (st.lumens < starCost(s)) return 'Не хватает Света';
+  return null;
+}
+
+export function lightStar(id: string) {
+  const s = starById(id);
+  if (!s || starBlock(s)) return false;
+  const before = doneConstellations();
+  st.lumens -= starCost(s);
+  st.stars.push(id);
+  skyVer++;
+  sfx.light();
+  const fresh = doneConstellations().find((b) => !before.includes(b));
+  if (fresh) {
+    st.events.push(`Созвездие «${CONSTELLATIONS[fresh].name}» зажжено целиком! +5% Света навсегда`);
+    sfx.goal();
+  }
+  save();
+  return true;
+}
+
 // ---------- формулы ----------
-export const nightLength = () => 40 + 10 * st.up.tank;
-const startOil = () => 12 + 8 * st.up.can;
-const speed = () => 3.2 * (1 + 0.12 * st.up.boots);
-const lanternR = () => 2.2 + 0.5 * st.up.lens;
-const growTime = () => 6 / Math.pow(1.4, st.up.fert);
-const seedsPer = () => 3 + st.up.seeds;
-const holdMul = () => Math.pow(0.75, st.up.ladder);
-export const lampCap = (l: Lamp) => KINDS[l.kind].cap * (l.kind === 'oil' || l.kind === 'gas' || l.kind === 'stubborn' ? 1 + 0.5 * st.up.lampTank : 1);
-const drain = () => 0.3 * Math.pow(0.8, st.up.wick);
-const lampR = () => 3.2 + 0.4 * st.up.glass;
-const lumenPer = () => 0.5 * (1 + 0.25 * st.up.rumor);
-const FIRST_LIGHT_BONUS = 2;
+export const nightLength = () => 40 + 10 * lv('tank');
+const startOil = () => Math.floor(12 + 8 * lv('can'));
+/** На дорогах с «Короткими тропами» — быстрее. */
+const speed = () => {
+  let k = 1 + 0.12 * lv('boots');
+  if (st.scene === 'night' && hasKey('trails')) {
+    const g = world.ground[Math.floor(st.player.y) * W + Math.floor(st.player.x)];
+    if (g === PATH || g === STONE || g === BRIDGE) k *= 1.25;
+  }
+  return 3.2 * k;
+};
+const lanternR = () => 2.2 + 0.5 * lv('lens');
+const growTime = () => 6 / Math.pow(1.4, lv('fert'));
+const seedsPer = () => 3 + Math.floor(lv('seeds'));
+const holdMul = () => Math.pow(0.75, lv('ladder'));
+export const lampCap = (l: Lamp) => KINDS[l.kind].cap * (l.kind === 'oil' || l.kind === 'gas' || l.kind === 'stubborn' ? 1 + 0.5 * lv('lampTank') : 1);
+const drain = () => 0.3 * Math.pow(0.8, lv('wick'));
+const lampR = () => 3.2 + 0.4 * lv('glass');
+const lumenPer = () => 0.5 * (1 + 0.25 * lv('rumor')) * (1 + CONSTELLATION_BONUS * doneConstellations().length);
+const firstLightBonus = () => (2 + lv('fame')) * (hasKey('loud') ? 2 : 1);
 /** Сколько Света теряется, если фонарь погас не дома. */
 const LOST_SHARE = 0.5;
-export const darkAlpha = () => (st.cine ? st.cine.dark : 0.8 - 0.08 * st.up.vision);
+export const darkAlpha = () => (st.cine ? st.cine.dark : 0.8 - 0.08 * lv('vision'));
 
 export const burning = (l: Lamp) => l.lit && l.oil > 0;
 export const litCount = () => world.lamps.filter(burning).length;
 export const lumenRate = () => (st.scene === 'night' && !st.nightOver
   ? world.lamps.reduce((sum, l) => sum + (burning(l) ? KINDS[l.kind].lumen : 0), 0) * lumenPer() : 0);
 export const hasResident = (id: ResidentId) => st.movedIn.includes(id);
-export const stationOpen = (s: Station) => s.id === 'bench' || hasResident(s.id as ResidentId);
+export const stationOpen = (s: Station) => s.id === 'scope' || hasResident(s.id as ResidentId);
 
 /** Радиус света фонаря: когда масла мало, круг сжимается. */
 export function lampRadius(l: Lamp) {
@@ -503,6 +553,7 @@ function goHome(safe: boolean) {
   st.spark = { x: st.player.x - 0.7, y: st.player.y - 0.7 };
   st.sparkSay = { text: '', t: 0 };
   if (!st.seen.firstReturn) { st.seen.firstReturn = true; say(SPARK_HOME); }
+  unlockPage('sky');
   // найденные этой ночью переезжают в мастерскую
   for (const id of st.night.found) {
     if (hasResident(id)) continue;
@@ -551,7 +602,7 @@ function ignite(l: Lamp) {
   if (l.kind !== 'oil') unlockPage('lamps');
   st.night.lit.push(l.id);
   if (!st.night.districts.includes(l.district)) st.night.districts.push(l.district);
-  const bonus = FIRST_LIGHT_BONUS * lumenPer() * 2 * KINDS[l.kind].lumen;
+  const bonus = firstLightBonus() * lumenPer() * 2 * KINDS[l.kind].lumen;
   st.carry += bonus;
   st.night.lumens += bonus;
   if (l.kind === 'beacon' && !st.beacons.includes(l.id)) {
@@ -616,7 +667,11 @@ export function currentAct(): Act | null {
     for (const s of STATIONS) {
       if (!stationOpen(s)) continue;
       const c = stationCenter(s);
-      const label = s.id === 'bench' ? 'Верстак' : `${residentById(s.id as ResidentId).name}: ${residentById(s.id as ResidentId).station}`;
+      if (s.id === 'scope') {
+        consider(c.x, c.y, 1.7, () => ({ key: 'scope', label: 'Телескоп: звёздное небо', time: 0.15, ok: true, run: () => { st.modal = { kind: 'sky' }; } }));
+        continue;
+      }
+      const label = `${residentById(s.id as ResidentId).name}: ${residentById(s.id as ResidentId).station}`;
       consider(c.x, c.y, 1.7, () => ({ key: 'st' + s.id, label, time: 0.15, ok: true, run: () => { st.modal = { kind: 'shop', station: s.id }; } }));
     }
     return best;
@@ -689,7 +744,7 @@ function lampAct(l: Lamp, hm: number): Act | null {
 
 /** Итог мини-игры на маслобойне: mult — насколько удачно крутили ворот. */
 export function finishPress(mult: number) {
-  const oil = Math.max(1, Math.round(st.seeds * mult));
+  const oil = Math.max(1, Math.round(st.seeds * mult * (1 + 0.1 * lv('press'))));
   st.oil += oil;
   st.seeds = 0;
   unlockPage('oil');
@@ -701,7 +756,7 @@ export function finishPress(mult: number) {
 export function hint(): string {
   if (st.scene === 'room') {
     if (readyQuests()) return 'На доске заказов ждёт награда';
-    return 'Потрать Свет у верстака и жителей — и снова в ночь';
+    return 'Зажги звёзды у телескопа — и снова в ночь';
   }
   if (st.lantern < 15) return st.beacons.length
     ? 'Фонарь гаснет! Неси Свет домой или к зажжённому маяку'
@@ -775,7 +830,7 @@ function updateHelpers(dt: number) {
     const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
     h.moving = d > 0.5;
     if (h.moving) {
-      const sp = Math.min(d, 2.4 * dt);
+      const sp = Math.min(d, 2.4 * (hasKey('fed') ? 1.5 : 1) * dt);
       h.x += (dx / d) * sp;
       h.y += (dy / d) * sp;
       h.anim += dt;
@@ -797,14 +852,16 @@ function updateNight(dt: number) {
   for (const l of world.lamps) {
     if (l.kindled > 0) l.kindled = Math.max(0, l.kindled - dt);
     if (!burning(l)) continue;
-    l.oil = Math.max(0, l.oil - drain() * KINDS[l.kind].drain * dt);
+    // «Братство огней»: рядом горит другой фонарь — масло тратится медленнее
+    const friends = hasKey('brotherhood') && world.lamps.some((o) => o !== l && burning(o) && Math.hypot(o.x - l.x, o.y - l.y) < 7);
+    l.oil = Math.max(0, l.oil - drain() * KINDS[l.kind].drain * (friends ? 0.6 : 1) * dt);
     if (l.oil <= 0) { l.lit = false; sfx.out(); tip('out'); continue; }
     // упрямый фонарь на побережье: порыв ветра может его задуть (масло останется)
     if (l.kind === 'stubborn') {
       l.gust -= dt;
       if (l.gust <= 0) {
         l.gust = 14 + Math.random() * 10;
-        if (Math.random() < 0.6) { l.lit = false; sfx.out(); tip('wind'); }
+        if (!hasKey('calm') && Math.random() < 0.6) { l.lit = false; sfx.out(); tip('wind'); }
       }
     }
   }
@@ -818,8 +875,10 @@ function updateNight(dt: number) {
   for (const f of world.flowers) {
     if (f.stage >= 3 || lightAt(f.x + 0.5, f.y + 0.5, ls) <= 0) continue;
     // болотный фонарь рядом — растут вдвое быстрее
-    const marsh = world.lamps.some((l) => l.kind === 'marsh' && burning(l) && Math.hypot(l.x - f.x, l.y - f.y) < lampRadius(l));
-    f.grow += (dt / growTime()) * (marsh ? 2 : 1);
+    // «Солнечные грядки» — вдвое быстрее у любого горящего фонаря, иначе только у болотного
+    const near = (l: Lamp) => burning(l) && Math.hypot(l.x - f.x, l.y - f.y) < lampRadius(l);
+    const fast = world.lamps.some((l) => (l.kind === 'marsh' || hasKey('sunbeds')) && near(l));
+    f.grow += (dt / growTime()) * (fast ? 2 : 1);
     if (f.grow >= 1) { f.stage++; f.grow = 0; }
   }
 
@@ -900,7 +959,7 @@ const SAVE_KEY = 'lamplighter-save-v2';
 
 export function save() {
   const data = {
-    lumens: st.lumens, up: st.up, met: st.met, movedIn: st.movedIn, quests: st.quests,
+    lumens: st.lumens, up: st.up, stars: st.stars, met: st.met, movedIn: st.movedIn, quests: st.quests,
     nights: st.nights, notesRead: st.notesRead, seen: st.seen, tips: st.tips, dryNights: st.dryNights,
     hasJournal: st.hasJournal, journal: st.journal, journalNew: st.journalNew, beacons: st.beacons,
     known: Array.from(st.known).join(''),
@@ -914,7 +973,19 @@ export function load(): boolean {
   try { data = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null'); } catch { data = null; }
   if (!data) return false;
   st.lumens = data.lumens ?? 0;
-  st.up = { ...emptyUps(), ...data.up };
+  st.up = emptyUps();
+  // старые улучшения-цифры переехали на небо: возвращаем потраченный на них Свет
+  let refund = 0;
+  for (const [id, n] of Object.entries(data.up ?? {}) as [string, number][]) {
+    if (id in st.up) st.up[id as UpId] = n;
+    else if (OLD_UPS[id]) for (let i = 0; i < n; i++) refund += Math.ceil(OLD_UPS[id][0] * Math.pow(OLD_UPS[id][1], i));
+  }
+  if (refund > 0) {
+    st.lumens += refund;
+    st.events.push(`Улучшения переехали на звёздное небо. Возвращено ${refund} Света — зажги звёзды у телескопа`);
+  }
+  st.stars = Array.isArray(data.stars) && data.stars.includes('center') ? data.stars : ['center'];
+  skyVer++;
   st.met = data.met ?? [];
   st.movedIn = data.movedIn ?? [];
   st.quests = data.quests ?? {};
@@ -925,6 +996,7 @@ export function load(): boolean {
   st.dryNights = data.dryNights ?? 0;
   st.hasJournal = data.hasJournal ?? false;
   st.journal = data.journal ?? [];
+  if (st.seen.firstReturn && st.hasJournal && !st.journal.includes('sky')) { st.journal.push('sky'); st.journalNew = true; }
   st.journalNew = data.journalNew ?? false;
   st.beacons = data.beacons ?? [];
   const k: string = data.known ?? '';

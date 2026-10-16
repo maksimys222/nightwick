@@ -243,3 +243,77 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 .press-marks i.hit { background: #ffd23a; border-color: #ffd23a; }
 .press-marks i.miss { background: #7a2a2a; border-color: #a83a32; }
 .press-result { text-align: center; font-size: 18px; color: var(--warm); min-height: 24px; }
+
+/* ---------- звёздное небо (телескоп) ---------- */
+#starsky {
+  position: fixed; inset: 0; z-index: 30;
+  background: radial-gradient(ellipse at center, #141032 0%, #07061a 60%, #020208 100%);
+}
+.sky-svg { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.sky-svg:active { cursor: grabbing; }
+.sky-top {
+  position: absolute; left: 16px; right: 16px; top: 12px; display: flex; gap: 16px; align-items: flex-start;
+  pointer-events: none;
+}
+.sky-top > div:first-child { flex: 1; }
+.sky-top h2 { margin: 0; font-weight: 400; font-size: 24px; color: var(--warm); }
+.sky-sub { color: var(--dim); font-size: 14px; max-width: 520px; }
+.sky-stats { text-align: right; font-size: 16px; }
+.sky-lumens { color: var(--warm); font-size: 20px; }
+.sky-count { color: var(--dim); }
+.sky-close {
+  pointer-events: auto; background: none; border: 1px solid var(--edge); color: var(--ink);
+  font: inherit; font-size: 22px; width: 36px; height: 36px; cursor: pointer; border-radius: 4px;
+}
+.sky-close:hover { border-color: var(--warm); }
+.sky-help { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; color: var(--dim); font-size: 13px; pointer-events: none; }
+.sky-sum {
+  position: absolute; left: 16px; bottom: 34px; max-width: 300px; font-size: 13px; line-height: 1.35;
+  background: rgba(10, 8, 26, 0.75); border: 1px solid var(--edge); padding: 8px 10px; border-radius: 4px; pointer-events: none;
+}
+.sky-sum b { color: var(--warm); font-weight: 400; display: block; margin-bottom: 2px; }
+.sky-sum .k { color: #ffe9a8; }
+
+.sky-dust circle { fill: #6a6890; opacity: 0.35; }
+.sky-svg line { stroke: #3a3660; stroke-width: 1.2; opacity: 0.5; }
+.sky-svg line.half { stroke: var(--c); opacity: 0.35; stroke-dasharray: 3 4; }
+.sky-svg line.on { stroke: var(--c); stroke-width: 2.2; opacity: 0.9; }
+
+.star { cursor: pointer; }
+.star .halo { fill: var(--c); opacity: 0; }
+.star .body { fill: #1c1a38; stroke: #4a4670; stroke-width: 1.5; }
+.star.locked .body { fill: #121024; stroke: #2a2844; }
+.star.near .body { stroke: var(--c); stroke-dasharray: 2 2; }
+.star.can .body { stroke: var(--c); stroke-width: 2; stroke-dasharray: none; animation: star-pulse 1.4s ease-in-out infinite; }
+.star.can .halo { opacity: 0.12; }
+.star.lit .body { fill: var(--c); stroke: #fff6d8; stroke-width: 1.5; }
+.star.lit .halo { opacity: 0.22; }
+.star.center .body { fill: #ffd27a; stroke: #fff6d8; }
+.star.center .core { fill: #fff; }
+.star.center .halo { opacity: 0.35; }
+.star:hover .body { stroke: #fff; }
+.star.flash .halo { animation: star-flash 0.6s ease-out; }
+@keyframes star-pulse { 50% { stroke-opacity: 0.35; } }
+@keyframes star-flash { from { opacity: 0.9; transform: scale(1.6); } to { opacity: 0.22; transform: scale(1); } }
+
+.sky-label { fill: var(--c); font-size: 15px; text-anchor: middle; font-family: 'Pixelify Sans', monospace; opacity: 0.85; pointer-events: none; }
+.sky-label.closed { fill: #6a6890; opacity: 0.7; }
+.sky-label.done { opacity: 1; font-size: 17px; }
+
+.sky-tip {
+  position: fixed; left: 0; top: 0; z-index: 31; width: 260px; pointer-events: none;
+  background: rgba(14, 11, 28, 0.96); border: 1px solid var(--edge); border-radius: 4px; padding: 8px 10px; font-size: 14px; line-height: 1.35;
+}
+.sky-tip .t-kind { font-size: 12px; }
+.sky-tip .t-name { color: var(--warm); font-size: 17px; margin-bottom: 4px; }
+.sky-tip .t-key { color: #ffe9a8; }
+.sky-tip .t-cost { color: var(--warm); margin-top: 6px; }
+.sky-tip .t-no { color: var(--bad); margin-top: 6px; }
+.sky-tip .t-ok { color: #9be89b; margin-top: 6px; }
+
+.shop-sky { color: var(--dim); font-size: 14px; margin-bottom: 10px; border-left: 2px solid var(--warm); padding-left: 8px; }
+
+@media (max-width: 600px) {
+  .sky-sub, .sky-sum { display: none; }
+  .sky-top h2 { font-size: 20px; }
+}

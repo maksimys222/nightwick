@@ -220,6 +220,23 @@ export function drawBench(g: Graphics) {
   g.rect(c.x + 8, c.y - 13, 3, 3).fill(0xffd36b); // фонарь на починке
 }
 
+/** Телескоп на треноге: через него видно звёздное небо. t — чтобы линза поблёскивала. */
+export function drawTelescope(g: Graphics, t: number) {
+  const c = toScreen(0.5, 0.5);
+  const x = c.x, y = c.y;
+  // тренога
+  g.rect(x - 6, y - 8, 1, 8).fill(0x5a3a1e);
+  g.rect(x + 5, y - 8, 1, 8).fill(0x5a3a1e);
+  g.rect(x, y - 9, 1, 10).fill(0x6b4423);
+  g.rect(x - 5, y - 10, 11, 2).fill(0x7a5232);
+  // труба смотрит в небо (ступеньками — пиксельная наклонная линия)
+  for (let i = 0; i < 8; i++) g.rect(x - 6 + i * 2, y - 12 - i * 2, 4, 3).fill(i < 3 ? 0xb8862e : 0xd8a84a);
+  g.rect(x + 8, y - 28, 4, 4).fill(0xe8c060);
+  // блик на линзе
+  if (Math.sin(t * 2) > 0.6) g.rect(x + 10, y - 27, 1, 1).fill(0xffffff);
+  else g.rect(x + 10, y - 27, 1, 1).fill(0x9ad0ff);
+}
+
 export function drawPlanter(g: Graphics) {
   isoBox(g, 1, 2, 7, 0x7a5232, 0x8f6238, 0x4a3220);
   for (const [x, y, flower] of [[0.5, 0.4, 0], [0.5, 1, 1], [0.5, 1.6, 0]] as const) {
