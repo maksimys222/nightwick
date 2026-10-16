@@ -63,4 +63,13 @@ const sim = (sec: number, inp: Partial<{ ix: number; iy: number; hold: boolean }
   ui.frame(1);
   app.render();
 };
-Object.assign(window, { st, world, sim, renderer, ui });
+// step(n) — прогнать n настоящих кадров по 1/60 с (для замеров плавности)
+const step = (n = 1) => {
+  for (let i = 0; i < n; i++) {
+    update(1 / 60, { ix: 0, iy: 0, hold: false });
+    renderer.frame(1 / 60);
+    ui.frame(1 / 60);
+  }
+  app.render();
+};
+Object.assign(window, { st, world, sim, step, renderer, ui });

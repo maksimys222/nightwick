@@ -10,7 +10,7 @@ import { Application, Container, Graphics, RenderTexture, Sprite } from 'pixi.js
 import { toScreen, isoEllipse } from './iso';
 import { st, world, type Light, type Scene } from './game';
 import { makePlaza } from './plaza';
-import { makeLightTexture } from './draw';
+import { makeLightTexture, drawSpark } from './draw';
 import { NightView } from './nightView';
 import { RoomView } from './roomView';
 
@@ -24,6 +24,8 @@ export interface View {
   darkAlpha(): number;
   lights(): Light[];
   focus(): { x: number; y: number };
+  /** Где летают искорки (их рисует Renderer поверх мира, с плавными координатами). */
+  sparks(): { x: number; y: number; alpha: number }[];
   update(): void;
 }
 
@@ -50,11 +52,14 @@ export class Renderer {
   private views: Record<Scene, View> = { night: new NightView(world, true), room: new RoomView(), plaza: new NightView(makePlaza(), false) };
   private current: Scene | null = null;
   private lastAlpha = -1;
+  /** Слой поверх тьмы в экранных пикселях: то, что должно двигаться плавно (Искра). */
+  private floatLayer = new Container();
+  private sparkGs: Graphics[] = [];
 
   constructor(private app: Application) {
     this.worldRoot.addChild(this.cam);
     this.darkRoot.addChild(this.darkFill, this.darkCam);
-    app.stage.addChild(this.worldSprite, this.darkSprite);
+    app.stage.addChild(this.worldSprite, this.darkSprite, this.floatLayer);
     this.resize();
   }
 
@@ -93,9 +98,10 @@ export class Renderer {
   }
 
   /** Экранная позиция точки мира в CSS-пикселях (для подсказок интерфейса). */
-  toCss(x: number, y: number) {
+  toCss(x: number, y: number, exact = false) {
     const s = toScreen(x, y);
-    return { x: (Math.round(s.x) + this.off.x) * this.scale, y: (Math.round(s.y) + this.off.y) * this.scale };
+    const r = exact ? (v: number) => v : Math.round; // exact — для того, что летает плавно (Искра)
+    return { x: (r(s.x) + this.off.x) * this.scale, y: (r(s.y) + this.off.y) * this.scale };
   }
 
   frame(dt: number) {
@@ -159,13 +165,29 @@ export class Renderer {
         const flick = 1 + 0.03 * Math.sin(t * 9 + L.id * 1.7) + 0.02 * Math.sin(t * 23 + L.id);
         const e = isoEllipse(L.r * flick * mul);
         const pos = toScreen(L.x, L.y);
-        s.position.set(Math.round(pos.x), Math.round(pos.y - 4));
+        // без округления: свет от летящей Искры не должен прыгать по пикселям
+        s.position.set(pos.x, pos.y - 4);
         s.width = e.rx * 2;
         s.height = e.ry * 2;
       });
     };
     sync(this.holes, 'erase', 0xffffff, 1, 1);
     sync(this.glow, 'add', v.glowTint, 0.22, 0.8);
+
+    // Искры: в экранных пикселях, координаты не округляем — летят плавно
+    this.floatLayer.scale.set(this.scale);
+    this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
+    const sp = v.sparks();
+    while (this.sparkGs.length < sp.length) this.sparkGs.push(this.floatLayer.addChild(new Graphics()));
+    this.sparkGs.forEach((g, i) => {
+      const s = sp[i];
+      g.visible = !!s && s.alpha > 0.01;
+      if (!g.visible) return;
+      drawSpark(g.clear(), t);
+      const p = toScreen(s.x, s.y);
+      g.position.set(p.x, p.y - 14);
+      g.alpha = s.alpha;
+    });
 
     const r = this.app.renderer;
     r.render({ container: this.worldRoot, target: this.worldRT, clear: true, clearColor: [0, 0, 0, 1] });

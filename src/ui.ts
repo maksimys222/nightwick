@@ -289,7 +289,7 @@ export class UI {
     bubble.hidden = !!c || say.t <= 0 || !!st.dialog.length || !!st.modal;
     if (!bubble.hidden) {
       bubble.textContent = say.text;
-      const p = this.r.toCss(st.spark.x, st.spark.y);
+      const p = this.r.toCss(st.spark.x, st.spark.y, true);
       bubble.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 40 * this.r.scale)}px) translate(-50%, -100%)`;
       bubble.style.opacity = String(Math.min(1, say.t * 2));
     }
@@ -302,7 +302,7 @@ export class UI {
     if (speaker) {
       $('talk-who').textContent = line.who ?? '';
       $('talk-text').textContent = line.text;
-      const p = this.r.toCss(speaker.x, speaker.y);
+      const p = this.r.toCss(speaker.x, speaker.y, speaker.kind === 'spark');
       const up = speaker.kind === 'villain' ? 40 : speaker.kind === 'spark' ? 22 : speaker.kind === 'sleeper' ? 12 : 26;
       // облачко не должно вылезать за край экрана
       const half = $('talk').offsetWidth / 2 + 8;

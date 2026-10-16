@@ -28,7 +28,6 @@ export class NightView implements View {
   private player = new Graphics();
   private helperGs: Graphics[] = [];
   private compass = new Graphics();
-  private spark = new Graphics();
   private actorGs: Graphics[] = [];
   private fogVer = -1;
 
@@ -43,6 +42,11 @@ export class NightView implements View {
   darkAlpha = darkAlpha;
   lights = lights;
   focus() { return st.cine ? st.cine.cam : { x: st.player.x, y: st.player.y }; }
+  /** Искру рисует Renderer поверх мира — так она летает плавно, без пиксельных скачков. */
+  sparks() {
+    if (st.cine) return st.cine.actors.filter((a) => a.kind === 'spark').map((a) => ({ x: a.x, y: a.y, alpha: a.alpha }));
+    return this.main ? [{ x: st.spark.x, y: st.spark.y, alpha: 1 }] : [];
+  }
 
   private place(g: Graphics, x: number, y: number, z = x + y) {
     const s = toScreen(x, y);
@@ -98,7 +102,7 @@ export class NightView implements View {
       if (p.kind === 'anvil') drawAnvil(g);
       if (p.kind === 'easel') drawEasel(g);
     }
-    this.objects.addChild(this.player, this.compass, this.spark);
+    this.objects.addChild(this.player, this.compass);
     this.compass.zIndex = 1e6;
   }
 
@@ -111,17 +115,13 @@ export class NightView implements View {
 
     this.drawActors();
     const playing = this.main && !st.cine;
-    this.player.visible = this.spark.visible = playing;
+    this.player.visible = playing;
     const pl = st.player;
     const p = toScreen(pl.x, pl.y);
     if (playing) {
       drawPerson(this.player.clear(), pl.face, pl.anim, pl.moving, 0x2b3a67, true, !st.nightOver);
       this.player.position.set(Math.round(p.x), Math.round(p.y));
       this.player.zIndex = (pl.x + pl.y) * 10 + 1;
-      drawSpark(this.spark.clear(), st.time);
-      const sp = toScreen(st.spark.x, st.spark.y);
-      this.spark.position.set(Math.round(sp.x), Math.round(sp.y - 14));
-      this.spark.zIndex = (st.spark.x + st.spark.y) * 10 + 2;
     }
 
     while (this.helperGs.length < st.helpers.length) {
@@ -196,18 +196,17 @@ export class NightView implements View {
     }
     this.actorGs.forEach((g, i) => {
       const a = actors[i];
-      g.visible = !!a && a.alpha > 0.01;
-      if (!a) return;
+      g.visible = !!a && a.alpha > 0.01 && a.kind !== 'spark';
+      if (!g.visible) return;
       g.clear();
       if (a.kind === 'villain') drawVillain(g, a.face, st.time, a.cast);
-      else if (a.kind === 'spark') drawSpark(g, st.time);
       else if (a.kind === 'sleeper') drawSleeper(g);
       else if (a.kind === 'smoke') drawSmoke(g, a.anim);
       else if (a.kind === 'hero') drawPerson(g, a.face, a.anim, a.moving, 0x2b3a67, true, true);
       else drawPerson(g, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat, false, false);
       g.alpha = a.alpha;
       const s = toScreen(a.x, a.y);
-      g.position.set(Math.round(s.x), Math.round(s.y - (a.kind === 'spark' ? 14 : 0)));
+      g.position.set(Math.round(s.x), Math.round(s.y));
       g.zIndex = (a.x + a.y) * 10 + 1;
     });
   }

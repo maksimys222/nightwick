@@ -24,7 +24,6 @@ export class RoomView implements View {
   private furniture: { s: Station; g: Graphics; npc: Graphics | null }[] = [];
   private fire = new Graphics();
   private player = new Graphics();
-  private spark = new Graphics();
 
   constructor() {
     this.root.addChild(buildShell(), this.board, this.objects);
@@ -32,6 +31,7 @@ export class RoomView implements View {
   }
 
   darkAlpha() { return 0.5; }
+  sparks() { return [{ x: st.spark.x, y: st.spark.y, alpha: 1 }]; }
 
   lights(): Light[] {
     const ls: Light[] = [
@@ -71,7 +71,7 @@ export class RoomView implements View {
       }
       this.furniture.push({ s, g, npc });
     }
-    this.objects.addChild(this.player, this.spark);
+    this.objects.addChild(this.player);
   }
 
   update() {
@@ -103,10 +103,6 @@ export class RoomView implements View {
     drawPerson(this.player.clear(), pl.face, pl.anim, pl.moving, 0x2b3a67, true, false);
     this.player.position.set(Math.round(p.x), Math.round(p.y));
     this.player.zIndex = (pl.x + pl.y) * 10 + 1;
-    drawSpark(this.spark.clear(), t);
-    const sp = toScreen(st.spark.x, st.spark.y);
-    this.spark.position.set(Math.round(sp.x), Math.round(sp.y - 14));
-    this.spark.zIndex = (st.spark.x + st.spark.y) * 10 + 2;
   }
 }
 
