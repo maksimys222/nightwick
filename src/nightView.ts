@@ -5,7 +5,7 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { TW, TH, toScreen } from './iso';
 import { GRASS, PATH, WATER, STONE, SAND, BRIDGE, homeDoor, outsideGround, type World } from './map';
 import type { Plaza } from './plaza';
-import { st, lights, burning, lampCap, darkAlpha } from './game';
+import { st, lights, burning, lampCap, darkAlpha, has } from './game';
 import { residentById, type ResidentId } from './story';
 import {
   hash, diamond, drawTree, drawLamp, drawFlower, drawHouse, drawPress, drawPerson, drawVillain, drawSpark,
@@ -180,7 +180,18 @@ export class NightView implements View {
       const h = this.w.houses.find((x) => x.rid === st.pointTo);
       if (h) arrow(h.x + 1, h.y + 1, 0xff7ab8, 22);
     }
-    if (this.w.home && st.lantern < 15) {
+    // «Зоркость»: зелёная стрелка — к ближайшему спелому подсолнуху
+    if (has('ripe')) {
+      let best = null, bd = Infinity;
+      for (const f of this.w.flowers) {
+        if (f.stage !== 3) continue;
+        const d = Math.hypot(f.x + 0.5 - pl.x, f.y + 0.5 - pl.y);
+        if (d < bd) { bd = d; best = f; }
+      }
+      if (best) arrow(best.x + 0.5, best.y + 0.5, 0x6bff7a, 19);
+    }
+    // белая — домой: когда фонарь гаснет, а с «Хлебными крошками» — всю ночь
+    if (this.w.home && (st.lantern < 15 || has('crumbs'))) {
       const d = homeDoor(this.w.home);
       if (Math.floor(st.time * 3) % 2 === 0 || st.lantern > 8) arrow(d.x, d.y, 0xffffff, 28);
     }

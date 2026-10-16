@@ -1,13 +1,14 @@
 // Звёздное небо — древо улучшений. Гаситель погасил и звёзды; фонарщик зажигает их Светом.
-// Здесь только данные: какие звёзды есть, где стоят и с кем связаны. Правила — в game.ts.
+// Здесь только данные: какие звёзды есть, что дают, где стоят и с кем связаны. Правила — в game.ts.
 //
-// В центре — Искра. Вокруг — кольцо «Фонарь» (свои улучшения фонарщика, открыто сразу).
+// Каждая звезда — своя: своё имя и свой эффект, повторов нет.
+// В центре — Искра. Вокруг — кольцо «Фонарь» (снаряжение фонарщика, открыто сразу).
 // Дальше шесть созвездий, по одному на жителя: ветка открывается, когда житель переехал в мастерскую.
 // Зажечь можно только звезду рядом с уже горящей.
 
 import type { ResidentId } from './story';
 
-/** Что улучшает звезда. Числа — «уровни», как у старых улучшений (0.5 — полуровня). */
+/** Цифры, которые улучшают звёзды («уровни», как были у старых улучшений). */
 export type Stat =
   | 'tank' | 'lens' | 'can' | 'boots'
   | 'fert' | 'seeds' | 'press'
@@ -15,8 +16,95 @@ export type Stat =
   | 'rumor' | 'fame'
   | 'vision' | 'glass';
 
-/** Особые звёзды: меняют правила, а не цифры. */
-export type Key = 'loud' | 'brotherhood' | 'sunbeds' | 'fed' | 'calm' | 'trails';
+/** Эффект звезды. У каждой звезды — свой. */
+export type Fx =
+  // «Фонарь»
+  | 'tank' | 'lens' | 'can' | 'boots' | 'spare' | 'coat' | 'tinder' | 'grip'
+  // Сева — «Конверт»
+  | 'rumor' | 'fame' | 'news' | 'reward' | 'chain' | 'mail' | 'loud' | 'gasplus' | 'gascheap'
+  // Тимофей — «Наковальня»
+  | 'wick' | 'lampTank' | 'ladder' | 'funnel' | 'freeoil' | 'flint' | 'brotherhood' | 'beaconcheap' | 'water'
+  // Агата — «Подсолнух»
+  | 'fert' | 'seeds' | 'press' | 'regrow' | 'sprouts' | 'honey' | 'sunbeds' | 'double' | 'pie'
+  // Мила — «Каравай»
+  | 'bread' | 'pin' | 'oven' | 'crumbs' | 'fullpour' | 'tea' | 'fed' | 'extrahelper' | 'snack'
+  // Филин — «Сова»
+  | 'vision' | 'glass' | 'reveal' | 'marshwide' | 'ear' | 'ripe' | 'calm' | 'beaconwide' | 'starmap'
+  // Ника — «Бумажный змей»
+  | 'sprint' | 'kite' | 'chalk' | 'moth' | 'rhyme' | 'homejump' | 'trails' | 'peek' | 'letters';
+
+export interface FxInfo { name: string; text: string; stats?: Partial<Record<Stat, number>> }
+
+export const FX: Record<Fx, FxInfo> = {
+  tank: { name: 'Бак побольше', text: 'Ночь длится на 20 секунд дольше', stats: { tank: 2 } },
+  lens: { name: 'Линза', text: 'Ручной фонарь светит дальше на клетку', stats: { lens: 2 } },
+  can: { name: 'Бидон', text: '+12 масла с собой в ночь', stats: { can: 1.5 } },
+  boots: { name: 'Сапоги', text: 'Ходишь на 18% быстрее', stats: { boots: 1.5 } },
+  spare: { name: 'Запасной фитиль', text: 'Когда ручной фонарь гаснет, он тлеет ещё 8 секунд (раз за ночь)' },
+  coat: { name: 'Тёплая куртка', text: 'Когда фонарь садится (меньше 15 с), ходишь на 25% быстрее' },
+  tinder: { name: 'Огниво', text: 'Первый фонарь за ночь зажигается без масла' },
+  grip: { name: 'Крепкая хватка', text: 'Если фонарь погас в пути, теряешь треть Света, а не половину' },
+
+  rumor: { name: 'Добрая весть', text: 'Фонари дают на 30% больше Света', stats: { rumor: 1.2 } },
+  fame: { name: 'Слава фонарщика', text: 'Больше Света за первый огонь каждого фонаря', stats: { fame: 2 } },
+  news: { name: 'Утренние новости', text: 'Ночь начинается с 5 Света в фонаре' },
+  reward: { name: 'Тёплое слово', text: 'Награды за заказы на 25% больше' },
+  chain: { name: 'Сарафанное радио', text: 'Каждый пятый фонарь за ночь — ещё +10 Света' },
+  mail: { name: 'Письмо домой', text: 'Маяк отправляет домой на 20% больше Света' },
+  loud: { name: 'Громкая молва', text: 'За первый огонь каждого фонаря — вдвое больше Света' },
+  gasplus: { name: 'Звезда Севы', text: 'Газовые фонари дают в полтора раза больше Света' },
+  gascheap: { name: 'Весточка кузнецу', text: 'Газовый фонарь зажигается за 15 масла вместо 20' },
+
+  wick: { name: 'Тонкий фитиль', text: 'Фонари тратят на 25% меньше масла', stats: { wick: 1.3 } },
+  lampTank: { name: 'Глубокий бак', text: 'В уличный фонарь влезает на 60% больше масла', stats: { lampTank: 1.2 } },
+  ladder: { name: 'Ловкие руки', text: 'Зажигаешь и подливаешь на 35% быстрее', stats: { ladder: 1.5 } },
+  funnel: { name: 'Широкая воронка', text: 'За раз подливаешь вдвое больше масла' },
+  freeoil: { name: 'Запас в колпаке', text: 'Только что зажжённый фонарь получает +5 масла бесплатно' },
+  flint: { name: 'Кремень', text: 'Упрямый фонарь зажигается за один шаг' },
+  brotherhood: { name: 'Братство огней', text: 'Фонарь тратит на 40% меньше масла, если рядом горит другой' },
+  beaconcheap: { name: 'Звезда Тимофея', text: 'Маяк зажигается за 8 масла вместо 15' },
+  water: { name: 'Железная лейка', text: 'Когда зажигаешь фонарь, подсолнухи рядом сразу подрастают' },
+
+  fert: { name: 'Тёплая земля', text: 'Подсолнухи растут на 50% быстрее', stats: { fert: 1.2 } },
+  seeds: { name: 'Крупное зерно', text: '+1 семечко с каждого подсолнуха', stats: { seeds: 1 } },
+  press: { name: 'Тугой ворот', text: 'Маслобойня даёт на 30% больше масла', stats: { press: 3 } },
+  regrow: { name: 'Бабушкин секрет', text: 'Сорванный подсолнух отрастает вдвое быстрее' },
+  sprouts: { name: 'Ранние всходы', text: 'В начале ночи подсолнухи уже проросли' },
+  honey: { name: 'Подсолнечный мёд', text: 'Маслобойня даёт ещё 1 Свет за каждые 4 семечка' },
+  sunbeds: { name: 'Солнечные грядки', text: 'Подсолнухи у горящих фонарей растут вдвое быстрее' },
+  double: { name: 'Звезда Агаты', text: 'Каждый четвёртый подсолнух даёт вдвое больше семечек' },
+  pie: { name: 'Пирожок с семечками', text: 'Маслобойня каждый раз даёт +2 масла сверху' },
+
+  bread: { name: 'Утренняя выпечка', text: '+2 масла с собой за каждого жителя в мастерской' },
+  pin: { name: 'Скалка', text: 'На маслобойне золотая зона шире на треть' },
+  oven: { name: 'Тёплая печь', text: 'Дом светится вдвое шире — его видно издалека' },
+  crumbs: { name: 'Хлебные крошки', text: 'Белая стрелка домой видна всю ночь' },
+  fullpour: { name: 'Щедрые руки', text: 'Подносчики заливают фонари до полного' },
+  tea: { name: 'Чай у ворота', text: 'Возле маслобойни ручной фонарь тратится вдвое медленнее' },
+  fed: { name: 'Сытые помощники', text: 'Подносчики ходят на 50% быстрее' },
+  extrahelper: { name: 'Звезда Милы', text: 'Ещё один подносчик каждую ночь — бесплатно' },
+  snack: { name: 'Ночной перекус', text: 'Каждые 3 сорванных подсолнуха продлевают ночь на 3 секунды' },
+
+  vision: { name: 'Совиный глаз', text: 'Тьма вокруг светлее на 16%', stats: { vision: 2 } },
+  glass: { name: 'Чистое стекло', text: 'Уличные фонари светят шире почти на клетку', stats: { glass: 2 } },
+  reveal: { name: 'Ночное зрение', text: 'Вокруг тебя туман рассеивается на клетку дальше' },
+  marshwide: { name: 'Лунный блик', text: 'Болотные фонари светят вдвое шире' },
+  ear: { name: 'Совиный слух', text: 'Если рядом (до 12 клеток) дом жителя — появится розовая стрелка' },
+  ripe: { name: 'Зоркость', text: 'Зелёная стрелка показывает на ближайший спелый подсолнух' },
+  calm: { name: 'Тихая ночь', text: 'Ветер больше не задувает упрямые фонари' },
+  beaconwide: { name: 'Звезда Филина', text: 'Маяки светят в полтора раза шире' },
+  starmap: { name: 'Звёздная карта', text: 'В начале ночи туман вокруг зажжённых маяков рассеивается' },
+
+  sprint: { name: 'Рывок', text: 'Первые 10 секунд ночи бежишь вдвое быстрее' },
+  kite: { name: 'Змей в небе', text: 'Ночь длиннее на 3 секунды за каждого жителя в мастерской' },
+  chalk: { name: 'Цветные мелки', text: 'Первый фонарь каждого вида за ночь — ещё +5 Света' },
+  moth: { name: 'Мотылёк', text: 'Искра светит вдвое ярче' },
+  rhyme: { name: 'Считалочка', text: 'Каждый четвёртый зажжённый фонарь продлевает ночь на 5 секунд' },
+  homejump: { name: 'Бумажный самолётик', text: 'От зажжённого маяка можно сразу вернуться домой — весь Свет цел' },
+  trails: { name: 'Короткие тропы', text: 'По дорогам и мостовым ходишь на 25% быстрее' },
+  peek: { name: 'Звезда Ники', text: 'В начале ночи видно три ближайших тёмных фонаря' },
+  letters: { name: 'Детские письма', text: 'Каждый найденный житель — сразу +20 Света' },
+};
 
 export type Branch = 'core' | ResidentId;
 export type Size = 'center' | 'small' | 'big' | 'key';
@@ -26,53 +114,13 @@ export interface Star {
   x: number; y: number;
   size: Size;
   branch: Branch;
-  name: string;
-  stats: Partial<Record<Stat, number>>;
-  key?: Key;
+  fx: Fx | null;
   links: string[];
   /** Расстояние от центра — от него зависит цена. */
   dist: number;
 }
 
-export const STAT_NAMES: Record<Stat, string> = {
-  tank: 'Долгая ночь', lens: 'Ясный взгляд', can: 'Полный бидон', boots: 'Лёгкий шаг',
-  fert: 'Тёплая земля', seeds: 'Крупное зерно', press: 'Тугой ворот',
-  ladder: 'Ловкие руки', lampTank: 'Глубокий бак', wick: 'Тонкий фитиль',
-  rumor: 'Добрая весть', fame: 'Слава фонарщика',
-  vision: 'Совиный глаз', glass: 'Чистое стекло',
-};
-
-const pct = (v: number) => Math.round(v * 100);
-const num = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',');
-
-/** Что даёт a уровней улучшения — словами (формулы те же, что в game.ts). */
-export const STAT_TEXT: Record<Stat, (a: number) => string> = {
-  tank: (a) => `Ночь длиннее на ${num(10 * a)} с`,
-  lens: (a) => `Ручной фонарь светит дальше (+${num(0.5 * a)} клетки)`,
-  can: (a) => `+${num(8 * a)} масла с собой в ночь`,
-  boots: (a) => `Ходишь на ${pct(0.12 * a)}% быстрее`,
-  fert: (a) => `Подсолнухи растут на ${pct(Math.pow(1.4, a) - 1)}% быстрее`,
-  seeds: (a) => `+${num(a)} семечко с каждого подсолнуха`,
-  press: (a) => `Маслобойня даёт на ${pct(0.1 * a)}% больше масла`,
-  ladder: (a) => `Зажигаешь и подливаешь на ${pct(1 - Math.pow(0.75, a))}% быстрее`,
-  lampTank: (a) => `В уличный фонарь влезает на ${pct(0.5 * a)}% больше масла`,
-  wick: (a) => `Фонари тратят на ${pct(1 - Math.pow(0.8, a))}% меньше масла`,
-  rumor: (a) => `Фонари дают на ${pct(0.25 * a)}% больше Света`,
-  fame: (a) => `Больше Света за первый огонь фонаря (+${num(a)})`,
-  vision: (a) => `Тьма вокруг светлее на ${pct(0.08 * a)}%`,
-  glass: (a) => `Уличные фонари светят шире (+${num(0.4 * a)} клетки)`,
-};
-
-export const KEYS: Record<Key, { name: string; text: string }> = {
-  loud: { name: 'Громкая молва', text: 'За первый огонь каждого фонаря — вдвое больше Света' },
-  brotherhood: { name: 'Братство огней', text: 'Фонарь тратит на 40% меньше масла, если рядом горит другой' },
-  sunbeds: { name: 'Солнечные грядки', text: 'Подсолнухи у горящих фонарей растут вдвое быстрее' },
-  fed: { name: 'Сытые помощники', text: 'Подносчики ходят на 50% быстрее' },
-  calm: { name: 'Тихая ночь', text: 'Ветер больше не задувает упрямые фонари' },
-  trails: { name: 'Короткие тропы', text: 'По дорогам и мостовым ходишь на 25% быстрее' },
-};
-
-/** Созвездия: собери целиком — получишь +5% Света и картинку на небе. */
+/** Созвездия: собери целиком — получишь +5% Света. */
 export const CONSTELLATIONS: Record<Branch, { name: string; color: number }> = {
   core: { name: 'Фонарь', color: 0xffd27a },
   seva: { name: 'Конверт', color: 0x9ad0ff },
@@ -84,107 +132,59 @@ export const CONSTELLATIONS: Record<Branch, { name: string; color: number }> = {
 };
 export const CONSTELLATION_BONUS = 0.05;
 
+export const starName = (s: Star) => (s.fx ? FX[s.fx].name : 'Искра');
+
 // ---------- раскладка ----------
 
-type S = Partial<Record<Stat, number>>;
-/** Места звёзд в ветке: расстояние от центра вдоль луча и сдвиг вбок. */
+/** Места звёзд в созвездии: расстояние от центра вдоль луча и сдвиг вбок. */
 const SLOTS = {
   G: { d: 165, o: 0, size: 'small' },
-  A1: { d: 220, o: -42, size: 'small' }, A2: { d: 275, o: -56, size: 'small' }, A3: { d: 330, o: -50, size: 'big' },
-  B1: { d: 220, o: 42, size: 'small' }, B2: { d: 275, o: 56, size: 'small' }, B3: { d: 330, o: 50, size: 'big' },
-  M: { d: 255, o: 0, size: 'small' },
-  C1: { d: 385, o: -30, size: 'small' }, C2: { d: 385, o: 30, size: 'small' },
-  K: { d: 440, o: 0, size: 'key' },
-  T1: { d: 500, o: -42, size: 'small' }, T2: { d: 500, o: 42, size: 'small' },
-  F: { d: 560, o: 0, size: 'big' },
+  A1: { d: 225, o: -46, size: 'small' }, B1: { d: 225, o: 46, size: 'small' },
+  M: { d: 262, o: 0, size: 'small' },
+  A2: { d: 300, o: -58, size: 'small' }, B2: { d: 300, o: 58, size: 'small' },
+  K: { d: 360, o: 0, size: 'key' },
+  F: { d: 432, o: 0, size: 'big' },
 } as const;
 type Slot = keyof typeof SLOTS;
 
 const EDGES: [Slot, Slot][] = [
-  ['G', 'A1'], ['G', 'B1'], ['A1', 'A2'], ['A2', 'A3'], ['B1', 'B2'], ['B2', 'B3'],
-  ['A1', 'M'], ['B1', 'M'], ['A3', 'C1'], ['B3', 'C2'], ['C1', 'C2'],
-  ['C1', 'K'], ['C2', 'K'], ['K', 'T1'], ['K', 'T2'], ['T1', 'F'], ['T2', 'F'],
+  ['G', 'A1'], ['G', 'B1'], ['A1', 'M'], ['B1', 'M'], ['A1', 'A2'], ['B1', 'B2'], ['A2', 'K'], ['B2', 'K'], ['K', 'F'],
 ];
 
-interface BranchSpec { id: ResidentId; angle: number; slots: Record<Exclude<Slot, 'K'>, S>; key: Key; owner: string }
+interface BranchSpec { id: ResidentId; angle: number; slots: Record<Slot, Fx>; bridge: Fx }
 
-/** Шесть созвездий по кругу (угол — куда смотрит луч, 0° — вправо, −90° — вверх). */
+/** Шесть созвездий по кругу (угол — куда смотрит луч, −90° — вверх). bridge — двойная звезда к следующему. */
 const BRANCHES: BranchSpec[] = [
-  {
-    id: 'seva', angle: -90, key: 'loud', owner: 'Севы',
-    slots: {
-      G: { rumor: 0.5 }, A1: { rumor: 0.5 }, A2: { rumor: 0.5 }, A3: { rumor: 1 }, B1: { fame: 0.5 }, B2: { fame: 0.5 }, B3: { fame: 1 },
-      M: { can: 0.5 }, C1: { rumor: 0.5 }, C2: { fame: 0.5 }, T1: { rumor: 0.5 }, T2: { can: 0.5 }, F: { rumor: 1 },
-    },
-  },
-  {
-    id: 'timofey', angle: -30, key: 'brotherhood', owner: 'Тимофея',
-    slots: {
-      G: { lampTank: 0.5 }, A1: { lampTank: 0.5 }, A2: { lampTank: 0.5 }, A3: { lampTank: 1 }, B1: { wick: 0.5 }, B2: { wick: 0.5 }, B3: { wick: 1 },
-      M: { ladder: 0.5 }, C1: { ladder: 0.5 }, C2: { wick: 0.5 }, T1: { lampTank: 0.5 }, T2: { ladder: 0.5 }, F: { wick: 1 },
-    },
-  },
-  {
-    id: 'agata', angle: 30, key: 'sunbeds', owner: 'Агаты',
-    slots: {
-      G: { fert: 0.5 }, A1: { fert: 0.5 }, A2: { fert: 0.5 }, A3: { fert: 1 }, B1: { press: 0.5 }, B2: { press: 0.5 }, B3: { seeds: 1 },
-      M: { can: 0.5 }, C1: { fert: 0.5 }, C2: { press: 0.5 }, T1: { press: 0.5 }, T2: { fert: 0.5 }, F: { seeds: 1 },
-    },
-  },
-  {
-    id: 'mila', angle: 90, key: 'fed', owner: 'Милы',
-    slots: {
-      G: { press: 0.5 }, A1: { press: 0.5 }, A2: { can: 0.5 }, A3: { press: 1 }, B1: { ladder: 0.5 }, B2: { ladder: 0.5 }, B3: { can: 1 },
-      M: { boots: 0.5 }, C1: { press: 0.5 }, C2: { ladder: 0.5 }, T1: { can: 0.5 }, T2: { press: 0.5 }, F: { seeds: 1 },
-    },
-  },
-  {
-    id: 'filin', angle: 150, key: 'calm', owner: 'Филина',
-    slots: {
-      G: { vision: 0.5 }, A1: { vision: 0.5 }, A2: { vision: 0.5 }, A3: { vision: 1 }, B1: { glass: 0.5 }, B2: { glass: 0.5 }, B3: { glass: 1 },
-      M: { lens: 0.5 }, C1: { lens: 0.5 }, C2: { glass: 0.5 }, T1: { vision: 0.5 }, T2: { lens: 0.5 }, F: { glass: 1 },
-    },
-  },
-  {
-    id: 'nika', angle: 210, key: 'trails', owner: 'Ники',
-    slots: {
-      G: { boots: 0.5 }, A1: { boots: 0.5 }, A2: { tank: 0.5 }, A3: { tank: 1 }, B1: { boots: 0.5 }, B2: { tank: 0.5 }, B3: { boots: 0.5, tank: 0.5 },
-      M: { lens: 0.5 }, C1: { tank: 0.5 }, C2: { boots: 0.5 }, T1: { tank: 0.5 }, T2: { can: 0.5 }, F: { tank: 1 },
-    },
-  },
+  { id: 'seva', angle: -90, bridge: 'gascheap',
+    slots: { G: 'rumor', A1: 'fame', B1: 'news', M: 'reward', A2: 'chain', B2: 'mail', K: 'loud', F: 'gasplus' } },
+  { id: 'timofey', angle: -30, bridge: 'water',
+    slots: { G: 'wick', A1: 'lampTank', B1: 'ladder', M: 'funnel', A2: 'freeoil', B2: 'flint', K: 'brotherhood', F: 'beaconcheap' } },
+  { id: 'agata', angle: 30, bridge: 'pie',
+    slots: { G: 'fert', A1: 'seeds', B1: 'press', M: 'regrow', A2: 'sprouts', B2: 'honey', K: 'sunbeds', F: 'double' } },
+  { id: 'mila', angle: 90, bridge: 'snack',
+    slots: { G: 'bread', A1: 'pin', B1: 'oven', M: 'crumbs', A2: 'fullpour', B2: 'tea', K: 'fed', F: 'extrahelper' } },
+  { id: 'filin', angle: 150, bridge: 'starmap',
+    slots: { G: 'vision', A1: 'glass', B1: 'reveal', M: 'marshwide', A2: 'ear', B2: 'ripe', K: 'calm', F: 'beaconwide' } },
+  { id: 'nika', angle: 210, bridge: 'letters',
+    slots: { G: 'sprint', A1: 'kite', B1: 'chalk', M: 'moth', A2: 'rhyme', B2: 'homejump', K: 'trails', F: 'peek' } },
 ];
 
-/** Кольцо «Фонарь» вокруг Искры — своё снаряжение фонарщика. */
-const CORE: S[] = [
-  { tank: 0.5 }, { lens: 0.5 }, { can: 0.5 }, { boots: 0.5 },
-  { tank: 0.5 }, { lens: 0.5 }, { can: 0.5 }, { boots: 0.5 },
-];
+/** Кольцо «Фонарь» вокруг Искры — снаряжение фонарщика. */
+const CORE: Fx[] = ['tank', 'lens', 'can', 'boots', 'spare', 'coat', 'tinder', 'grip'];
 const CORE_R = 90;
-
-/** Название звезды по тому, что она даёт. */
-function nameOf(stats: S, size: Size) {
-  const first = Object.keys(stats)[0] as Stat;
-  const n = STAT_NAMES[first];
-  return size === 'big' ? `${n} — яркая` : n;
-}
 
 function build(): Star[] {
   const stars: Star[] = [];
-  const add = (s: Omit<Star, 'links' | 'dist'>) => {
-    const star = { ...s, links: [], dist: Math.hypot(s.x, s.y) };
-    stars.push(star);
-    return star;
-  };
+  const add = (s: Omit<Star, 'links' | 'dist'>) => { stars.push({ ...s, links: [], dist: Math.hypot(s.x, s.y) }); };
   const link = (a: string, b: string) => {
-    const A = stars.find((s) => s.id === a)!, B = stars.find((s) => s.id === b)!;
-    A.links.push(b);
-    B.links.push(a);
+    stars.find((s) => s.id === a)!.links.push(b);
+    stars.find((s) => s.id === b)!.links.push(a);
   };
 
-  add({ id: 'center', x: 0, y: 0, size: 'center', branch: 'core', name: 'Искра', stats: {} });
-  CORE.forEach((stats, i) => {
+  add({ id: 'center', x: 0, y: 0, size: 'center', branch: 'core', fx: null });
+  CORE.forEach((fx, i) => {
     const a = ((i * 45 + 22.5 - 90) * Math.PI) / 180;
-    add({ id: `core${i}`, x: Math.cos(a) * CORE_R, y: Math.sin(a) * CORE_R, size: 'small', branch: 'core', name: nameOf(stats, 'small'), stats });
+    add({ id: `core${i}`, x: Math.cos(a) * CORE_R, y: Math.sin(a) * CORE_R, size: 'small', branch: 'core', fx });
     link('center', `core${i}`);
   });
   for (let i = 0; i < CORE.length; i++) link(`core${i}`, `core${(i + 1) % CORE.length}`);
@@ -193,14 +193,7 @@ function build(): Star[] {
     const a = (b.angle * Math.PI) / 180;
     const ax = Math.cos(a), ay = Math.sin(a), px = -ay, py = ax;
     for (const [slot, pos] of Object.entries(SLOTS) as [Slot, (typeof SLOTS)[Slot]][]) {
-      const id = `${b.id}-${slot}`;
-      const x = ax * pos.d + px * pos.o, y = ay * pos.d + py * pos.o;
-      if (slot === 'K') add({ id, x, y, size: 'key', branch: b.id, name: KEYS[b.key].name, stats: {}, key: b.key });
-      else {
-        const stats = b.slots[slot];
-        const name = slot === 'F' ? `Звезда ${b.owner}` : nameOf(stats, pos.size);
-        add({ id, x, y, size: pos.size, branch: b.id, name, stats });
-      }
+      add({ id: `${b.id}-${slot}`, x: ax * pos.d + px * pos.o, y: ay * pos.d + py * pos.o, size: pos.size, branch: b.id, fx: b.slots[slot] });
     }
     for (const [p, q] of EDGES) link(`${b.id}-${p}`, `${b.id}-${q}`);
     // вход в созвездие — от двух ближайших звёзд кольца «Фонарь»
@@ -211,16 +204,12 @@ function build(): Star[] {
     for (const s of near) link(s.id, `${b.id}-G`);
   }
 
-  // мостики между соседними созвездиями: двойные звёзды (по полуровня от каждого соседа).
-  // Мостик принадлежит созвездию слева — откроется вместе с ним.
+  // двойные звёзды между соседними созвездиями (принадлежат левому — открываются вместе с ним)
   BRANCHES.forEach((b, i) => {
     const n = BRANCHES[(i + 1) % BRANCHES.length];
-    const a = (((b.angle + 30) * Math.PI) / 180);
-    const sa = b.slots.A1, sb = n.slots.A1;
-    const stats: S = { ...sa };
-    for (const [k, v] of Object.entries(sb) as [Stat, number][]) stats[k] = (stats[k] ?? 0) + v;
+    const a = ((b.angle + 30) * Math.PI) / 180;
     const id = `bridge${i}`;
-    add({ id, x: Math.cos(a) * 300, y: Math.sin(a) * 300, size: 'small', branch: b.id, name: 'Двойная звезда', stats });
+    add({ id, x: Math.cos(a) * 335, y: Math.sin(a) * 335, size: 'small', branch: b.id, fx: b.bridge });
     link(id, `${b.id}-B2`);
     link(id, `${n.id}-A2`);
   });

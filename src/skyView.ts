@@ -2,8 +2,8 @@
 // колёсико — приблизить, тянуть мышью — двигать, клик по звезде — зажечь.
 // Рисунок здесь — заглушки (кружки и линии); потом их заменит настоящий арт.
 
-import { st, lightStar, starBlock, starCost, starLit, branchOpen, doneConstellations, lv } from './game';
-import { STARS, CONSTELLATIONS, STAT_TEXT, KEYS, CONSTELLATION_BONUS, starById, type Star, type Branch, type Stat } from './sky';
+import { st, lightStar, starBlock, starCost, starLit, branchOpen, doneConstellations } from './game';
+import { STARS, FX, CONSTELLATIONS, CONSTELLATION_BONUS, starById, starName, type Star, type Branch } from './sky';
 import { residentById, type ResidentId } from './story';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -153,7 +153,7 @@ export class SkyView {
     this.root.hidden = false;
     // всё небо (радиус ~620) — по размеру экрана
     const r = this.svg.getBoundingClientRect();
-    this.view = { x: 0, y: 20, k: Math.min(1.4, Math.min(r.width, r.height - 120) / 1500) };
+    this.view = { x: 0, y: 20, k: Math.min(1.4, Math.min(r.width, r.height - 120) / 1080) };
     this.applyView();
     this.refresh();
   }
@@ -209,15 +209,14 @@ export class SkyView {
 
   /** Что уже даёт небо — коротко, в углу. */
   private summary() {
-    const rows: string[] = [];
-    for (const k of Object.keys(STAT_TEXT) as Stat[]) {
-      const v = lv(k);
-      if (v > 0) rows.push(`<div>${STAT_TEXT[k](v)}</div>`);
-    }
-    for (const s of STARS) if (s.key && starLit(s.id)) rows.push(`<div class="k">★ ${KEYS[s.key].name}</div>`);
+    // последние зажжённые — сверху; всё сразу не влезет, поэтому показываем 7
+    const lit = st.stars.filter((id) => id !== 'center').map(starById).reverse();
+    if (!lit.length) return '<b>Небо пока тёмное.</b><div>Начни с кольца вокруг Искры.</div>';
+    const rows = lit.slice(0, 7).map((s) => `<div${s.size === 'key' || s.size === 'big' ? ' class="k"' : ''}>${starName(s)}: ${FX[s.fx!].text.toLowerCase()}</div>`);
+    if (lit.length > 7) rows.push(`<div class="more">…и ещё ${lit.length - 7}</div>`);
     const n = doneConstellations().length;
     if (n) rows.push(`<div class="k">Созвездий: ${n} — +${Math.round(n * CONSTELLATION_BONUS * 100)}% Света</div>`);
-    return rows.length ? `<b>Небо даёт:</b>${rows.join('')}` : '<b>Небо пока тёмное.</b><div>Начни с кольца вокруг Искры.</div>';
+    return `<b>Горят ${lit.length}:</b>${rows.join('')}`;
   }
 
   private showTip(cx: number, cy: number) {
@@ -232,9 +231,7 @@ export class SkyView {
 
   private fillTip(s: Star) {
     const c = CONSTELLATIONS[s.branch];
-    const lines = s.key
-      ? `<div class="t-key">${KEYS[s.key].text}</div>`
-      : (Object.entries(s.stats) as [Stat, number][]).map(([k, v]) => `<div>${STAT_TEXT[k](v)}</div>`).join('');
+    const lines = s.fx ? `<div class="${s.size === 'key' || s.size === 'big' ? 't-key' : ''}">${FX[s.fx].text}</div>` : '';
     const kind = s.size === 'center' ? 'Сердце неба' : s.size === 'key' ? 'Особая звезда' : s.size === 'big' ? 'Яркая звезда' : 'Звезда';
     let foot: string;
     if (s.size === 'center') foot = '<div class="t-ok">Горит всегда. С неё всё начинается.</div>';
@@ -247,6 +244,6 @@ export class SkyView {
           ? `<div class="t-no">Нужно ${fmt(starCost(s))} Света</div>`
           : `<div class="t-no">${block}</div>`;
     }
-    this.tip.innerHTML = `<div class="t-kind" style="color:${hex(c.color)}">${kind} · «${c.name}»</div><div class="t-name">${s.name}</div>${lines}${foot}`;
+    this.tip.innerHTML = `<div class="t-kind" style="color:${hex(c.color)}">${kind} · «${c.name}»</div><div class="t-name">${starName(s)}</div>${lines}${foot}`;
   }
 }

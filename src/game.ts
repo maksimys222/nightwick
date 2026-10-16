@@ -11,7 +11,7 @@ import {
   type ResidentId, type StationId, type NightStats, type Line, type Quest,
 } from './story';
 import * as sfx from './audio';
-import { STARS, CONSTELLATIONS, CONSTELLATION_BONUS, starById, type Stat, type Key, type Star, type Branch } from './sky';
+import { STARS, FX, CONSTELLATIONS, CONSTELLATION_BONUS, starById, type Stat, type Fx, type Star, type Branch } from './sky';
 
 export const world = makeWorld();
 
@@ -141,6 +141,8 @@ export const st = {
   /** Сообщения для интерфейса (UI их забирает). */
   events: [] as string[],
   pressAcc: 0,
+  /** «Запасной фитиль» уже сработал этой ночью. */
+  spareUsed: false,
   knownAcc: 0,
 };
 
@@ -181,24 +183,27 @@ const bridgeEnd = (() => {
 // ---------- звёздное небо ----------
 
 let skyVer = 0;
-let skyCache = { ver: -1, lv: {} as Partial<Record<Stat, number>>, keys: new Set<Key>(), done: [] as Branch[] };
+/** Версия раскладки неба: поменялась — звёзды из сохранения возвращаются Светом. */
+const SKY_VERSION = 2;
+let skyCache = { ver: -1, lv: {} as Partial<Record<Stat, number>>, fx: new Set<Fx>(), done: [] as Branch[] };
 function sky() {
   if (skyCache.ver === skyVer) return skyCache;
   const lv: Partial<Record<Stat, number>> = {};
-  const keys = new Set<Key>();
+  const fx = new Set<Fx>();
   for (const id of st.stars) {
     const s = starById(id);
-    if (!s) continue;
-    for (const [k, v] of Object.entries(s.stats) as [Stat, number][]) lv[k] = (lv[k] ?? 0) + v;
-    if (s.key) keys.add(s.key);
+    if (!s?.fx) continue;
+    fx.add(s.fx);
+    for (const [k, v] of Object.entries(FX[s.fx].stats ?? {}) as [Stat, number][]) lv[k] = (lv[k] ?? 0) + v;
   }
   const done = (Object.keys(CONSTELLATIONS) as Branch[]).filter((b) => STARS.every((s) => s.branch !== b || st.stars.includes(s.id)));
-  skyCache = { ver: skyVer, lv, keys, done };
+  skyCache = { ver: skyVer, lv, fx, done };
   return skyCache;
 }
 /** Уровень улучшения от зажжённых звёзд. */
 export const lv = (k: Stat) => sky().lv[k] ?? 0;
-export const hasKey = (k: Key) => sky().keys.has(k);
+/** Зажжена ли звезда с этим эффектом. */
+export const has = (f: Fx) => sky().fx.has(f);
 /** Собранные целиком созвездия. */
 export const doneConstellations = () => sky().done;
 
@@ -236,14 +241,16 @@ export function lightStar(id: string) {
 }
 
 // ---------- формулы ----------
-export const nightLength = () => 40 + 10 * lv('tank');
-const startOil = () => Math.floor(12 + 8 * lv('can'));
+export const nightLength = () => 40 + 10 * lv('tank') + (has('kite') ? 3 * st.movedIn.length : 0);
+const startOil = () => Math.floor(12 + 8 * lv('can') + (has('bread') ? 2 * st.movedIn.length : 0));
 /** На дорогах с «Короткими тропами» — быстрее. */
 const speed = () => {
   let k = 1 + 0.12 * lv('boots');
-  if (st.scene === 'night' && hasKey('trails')) {
+  if (st.scene === 'night') {
     const g = world.ground[Math.floor(st.player.y) * W + Math.floor(st.player.x)];
-    if (g === PATH || g === STONE || g === BRIDGE) k *= 1.25;
+    if (has('trails') && (g === PATH || g === STONE || g === BRIDGE)) k *= 1.25;
+    if (has('coat') && st.lantern < 15) k *= 1.25;
+    if (has('sprint') && st.lanternMax - st.lantern < 10) k *= 2;
   }
   return 3.2 * k;
 };
@@ -255,22 +262,27 @@ export const lampCap = (l: Lamp) => KINDS[l.kind].cap * (l.kind === 'oil' || l.k
 const drain = () => 0.3 * Math.pow(0.8, lv('wick'));
 const lampR = () => 3.2 + 0.4 * lv('glass');
 const lumenPer = () => 0.5 * (1 + 0.25 * lv('rumor')) * (1 + CONSTELLATION_BONUS * doneConstellations().length);
-const firstLightBonus = () => (2 + lv('fame')) * (hasKey('loud') ? 2 : 1);
+const firstLightBonus = () => (2 + lv('fame')) * (has('loud') ? 2 : 1);
 /** Сколько Света теряется, если фонарь погас не дома. */
-const LOST_SHARE = 0.5;
+const lostShare = () => (has('grip') ? 1 / 3 : 0.5);
+/** Сколько масла нужно, чтобы зажечь фонарь (звёзды делают газ и маяки дешевле). */
+export const kindCost = (k: LampKind) =>
+  k === 'gas' && has('gascheap') ? 15 : k === 'beacon' && has('beaconcheap') ? 8 : KINDS[k].cost;
 export const darkAlpha = () => (st.cine ? st.cine.dark : 0.8 - 0.08 * lv('vision'));
 
 export const burning = (l: Lamp) => l.lit && l.oil > 0;
 export const litCount = () => world.lamps.filter(burning).length;
 export const lumenRate = () => (st.scene === 'night' && !st.nightOver
-  ? world.lamps.reduce((sum, l) => sum + (burning(l) ? KINDS[l.kind].lumen : 0), 0) * lumenPer() : 0);
+  ? world.lamps.reduce((sum, l) => sum + (burning(l) ? KINDS[l.kind].lumen * (l.kind === 'gas' && has('gasplus') ? 1.5 : 1) : 0), 0) * lumenPer() : 0);
 export const hasResident = (id: ResidentId) => st.movedIn.includes(id);
 export const stationOpen = (s: Station) => s.id === 'scope' || hasResident(s.id as ResidentId);
 
 /** Радиус света фонаря: когда масла мало, круг сжимается. */
 export function lampRadius(l: Lamp) {
   if (!burning(l)) return 0;
-  const big = l.name === 'Старый маяк' ? 1.5 : 1;
+  let big = l.name === 'Старый маяк' ? 1.5 : 1;
+  if (l.kind === 'marsh' && has('marshwide')) big *= 2;
+  if (l.kind === 'beacon' && has('beaconwide')) big *= 1.5;
   const k = KINDS[l.kind].drain ? 0.55 + 0.45 * Math.min(1, l.oil / (lampCap(l) * 0.25)) : 1;
   return lampR() * KINDS[l.kind].radius * big * k;
 }
@@ -286,8 +298,8 @@ export function lights(): Light[] {
   // ручной фонарь к концу смены тускнеет
   const k = st.nightOver ? 0.5 : 0.6 + 0.4 * Math.min(1, st.lantern / 10);
   const out: Light[] = [{ x: st.player.x, y: st.player.y, r: lanternR() * k, id: -1 }];
-  out.push({ x: st.spark.x, y: st.spark.y, r: 1.1, id: -2 });
-  if (world.home) { const d = homeDoor(world.home); out.push({ x: d.x, y: d.y - 0.6, r: 3, id: -3 }); }
+  out.push({ x: st.spark.x, y: st.spark.y, r: has('moth') ? 2.4 : 1.1, id: -2 });
+  if (world.home) { const d = homeDoor(world.home); out.push({ x: d.x, y: d.y - 0.6, r: has('oven') ? 6 : 3, id: -3 }); }
   for (const l of world.lamps) if (burning(l)) out.push({ x: l.x + 0.5, y: l.y + 0.5, r: lampRadius(l), id: l.id, tint: KINDS[l.kind].tint });
   return out;
 }
@@ -340,7 +352,7 @@ export function claim(id: string) {
   const q = QUESTS.find((x) => x.id === id)!;
   if (questState(q) !== 'done') return;
   st.quests[id] = 'claimed';
-  st.lumens += q.reward;
+  st.lumens += Math.round(q.reward * (has('reward') ? 1.25 : 1));
   sfx.buy();
   if (q.final && !st.seen.ending) {
     st.seen.ending = true;
@@ -495,7 +507,7 @@ export function startNight(at: number | null = null) {
   st.lanternMax = st.lantern = nightLength();
   st.oil = startOil();
   st.seeds = 0;
-  st.carry = 0;
+  st.carry = has('news') ? 5 : 0;
   st.night = emptyNight();
   for (const l of world.lamps) {
     const beacon = st.beacons.includes(l.id);
@@ -503,12 +515,13 @@ export function startNight(at: number | null = null) {
     l.lit = l.everLit = beacon;
     l.kindled = 0;
   }
-  for (const f of world.flowers) { f.stage = 0; f.grow = 0; }
+  for (const f of world.flowers) { f.stage = has('sprouts') ? 1 : 0; f.grow = 0; }
+  st.spareUsed = false;
   const b = at !== null ? world.lamps[at] : null;
   const pos = b ? spotNear(b) : world.start;
   st.player = { x: pos.x, y: pos.y, face: 1, anim: 0, moving: false };
   const pr = nearestPress(pos.x, pos.y);
-  st.helpers = Array.from({ length: st.up.helper }, (_, i) => ({
+  st.helpers = Array.from({ length: st.up.helper + (has('extrahelper') ? 1 : 0) }, (_, i) => ({
     x: pr.x + 0.5 + i * 0.6, y: pr.y + 1.5, tgt: null, face: 1, anim: 0, moving: false,
   }));
   if (st.up.map) {
@@ -519,6 +532,18 @@ export function startNight(at: number | null = null) {
   }
   st.spark = { x: st.player.x - 0.7, y: st.player.y - 0.7 };
   st.pointTo = null;
+  // «Звёздная карта»: туман вокруг зажжённых маяков; «Звезда Ники»: три ближайших тёмных фонаря
+  const reveal = (cx: number, cy: number, r: number) => {
+    for (let y = Math.floor(cy - r); y <= cy + r; y++)
+      for (let x = Math.floor(cx - r); x <= cx + r; x++)
+        if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) st.known[y * W + x] = 1;
+  };
+  if (has('starmap')) for (const id of st.beacons) reveal(world.lamps[id].x + 0.5, world.lamps[id].y + 0.5, 7);
+  if (has('peek')) {
+    const dark = world.lamps.filter((l) => !l.lit).sort((a, b) => Math.hypot(a.x - pos.x, a.y - pos.y) - Math.hypot(b.x - pos.x, b.y - pos.y));
+    for (const l of dark.slice(0, 3)) reveal(l.x + 0.5, l.y + 0.5, 2);
+  }
+  st.knownVer++;
   st.sparkSay = { text: '', t: 0 };
   sfx.light();
   if (st.nights > 1) residentHint();
@@ -528,7 +553,7 @@ function endNight() {
   st.nightOver = true;
   st.hold.key = '';
   sfx.out();
-  const lost = Math.floor(st.carry * LOST_SHARE);
+  const lost = Math.floor(st.carry * lostShare());
   say([{ who: SPARK, text: lost > 0
     ? `Фонарь погас! Держись за меня — тащу домой!.. Ой. По дороге рассыпалось ${lost} Света.`
     : 'Фонарь погас! Держись за меня — тащу домой!' }], () => goHome(false));
@@ -540,7 +565,7 @@ function nearestPress(x: number, y: number) {
 
 /** Вернуться в мастерскую. safe — дошёл сам (весь Свет цел), иначе половина потеряна. */
 function goHome(safe: boolean) {
-  const brought = Math.floor(safe ? st.carry : st.carry * (1 - LOST_SHARE));
+  const brought = Math.floor(safe ? st.carry : st.carry * (1 - lostShare()));
   st.lumens += brought;
   st.carry = 0;
   if (brought > 0) st.events.push(`Принесено домой: +${brought} Света`);
@@ -575,19 +600,19 @@ function goHome(safe: boolean) {
 export interface Act { key: string; label: string; time: number; ok: boolean; why?: string; run: () => void }
 
 /** Подлить масла (за раз — не больше 10, газовому при первом огне — 20). */
-function fill(l: Lamp) {
+function fill(l: Lamp, full = false) {
   const k = KINDS[l.kind];
   if (!k.drain) {
     // маяк и болотный фонарь: платишь один раз — горят всю ночь
-    st.oil -= k.cost;
+    st.oil -= kindCost(l.kind);
     l.oil = lampCap(l);
   } else {
-    const max = !l.everLit && l.kind === 'gas' ? 20 : 10;
+    const max = full ? Infinity : (!l.everLit && l.kind === 'gas' ? 20 : 10) * (has('funnel') ? 2 : 1);
     const amt = Math.min(lampCap(l) - l.oil, st.oil, max);
     l.oil += amt;
     st.oil -= amt;
   }
-  if (l.kind !== 'stubborn' || l.kindled > 0) ignite(l);
+  if (l.kind !== 'stubborn' || l.kindled > 0 || has('flint')) ignite(l);
 }
 
 /** Огонь загорелся. */
@@ -597,12 +622,20 @@ function ignite(l: Lamp) {
   if (l.kind === 'stubborn') l.gust = 10 + Math.random() * 8;
   if (l.everLit) return;
   l.everLit = true;
+  if (has('freeoil') && KINDS[l.kind].drain) l.oil = Math.min(lampCap(l), l.oil + 5);
+  // «Железная лейка»: подсолнухи рядом подрастают
+  if (has('water')) for (const f of world.flowers) if (f.stage < 3 && Math.hypot(f.x - l.x, f.y - l.y) < 4) { f.stage++; f.grow = 0; }
+  const newKind = !st.night.lit.some((id) => world.lamps[id].kind === l.kind);
   tip('lit');
   unlockPage('light');
   if (l.kind !== 'oil') unlockPage('lamps');
   st.night.lit.push(l.id);
   if (!st.night.districts.includes(l.district)) st.night.districts.push(l.district);
-  const bonus = firstLightBonus() * lumenPer() * 2 * KINDS[l.kind].lumen;
+  let bonus = firstLightBonus() * lumenPer() * 2 * KINDS[l.kind].lumen;
+  const n = st.night.lit.length;
+  if (has('chain') && n % 5 === 0) { bonus += 10; st.events.push('Сарафанное радио: +10 Света'); }
+  if (has('chalk') && newKind) bonus += 5;
+  if (has('rhyme') && n % 4 === 0) { addTime(5); st.events.push('Считалочка: ночь длиннее на 5 секунд'); }
   st.carry += bonus;
   st.night.lumens += bonus;
   if (l.kind === 'beacon' && !st.beacons.includes(l.id)) {
@@ -615,10 +648,16 @@ function ignite(l: Lamp) {
 }
 
 /** Маяк отправляет собранный Свет домой (его уже не потеряешь). */
+/** Продлить ночь (полоска сверху тоже растёт). */
+function addTime(sec: number) {
+  st.lantern += sec;
+  st.lanternMax = Math.max(st.lanternMax, st.lantern);
+}
+
 function bank() {
-  const n = Math.floor(st.carry);
+  const n = Math.floor(st.carry * (has('mail') ? 1.2 : 1));
   st.lumens += n;
-  st.carry -= n;
+  st.carry = 0;
   st.events.push(`Маяк отправил домой ${n} Света`);
   sfx.buy();
   save();
@@ -626,9 +665,11 @@ function bank() {
 
 function harvest(f: Flower) {
   f.stage = 1;
-  f.grow = 0;
-  st.seeds += seedsPer();
+  // «Бабушкин секрет»: отрастает вдвое быстрее — сразу полпути
+  f.grow = has('regrow') ? 0.5 : 0;
+  st.seeds += seedsPer() * (has('double') && Math.random() < 0.25 ? 2 : 1);
   st.night.harvested++;
+  if (has('snack') && st.night.harvested % 3 === 0) addTime(3);
   unlockPage('seeds');
 }
 
@@ -636,6 +677,7 @@ function knock(h: House) {
   const r = residentById(h.rid);
   st.met.push(h.rid);
   st.night.found.push(h.rid);
+  if (has('letters')) { st.lumens += 20; st.events.push('Детские письма: +20 Света'); }
   unlockPage('residents');
   sfx.knock();
   say([{ who: r.name, text: r.knock }, { text: `${r.name} переберётся к тебе в мастерскую, когда закончится ночь.` }]);
@@ -719,7 +761,14 @@ function lampAct(l: Lamp, hm: number): Act | null {
   const k = KINDS[l.kind];
   const key = 'lamp' + l.id;
   if (!l.lit) {
-    if (l.kind === 'stubborn') {
+    // «Огниво»: первый фонарь за ночь — без масла
+    if (has('tinder') && st.night.lit.length === 0 && l.kind !== 'stubborn') {
+      return {
+        key, label: 'Зажечь огнивом (без масла)', time: k.hold * hm, ok: true,
+        run: () => { l.oil = k.drain ? Math.min(lampCap(l), 10) : lampCap(l); ignite(l); sfx.light(); },
+      };
+    }
+    if (l.kind === 'stubborn' && !has('flint')) {
       if (l.kindled > 0) return { key, label: 'Раздуть пламя (2/2)', time: k.hold * hm, ok: true, run: () => { ignite(l); sfx.light(); } };
       const need = l.oil >= 1 ? 0 : 1;
       return {
@@ -727,15 +776,20 @@ function lampAct(l: Lamp, hm: number): Act | null {
         run: () => { if (need) fill(l); l.kindled = 6; sfx.pick(); },
       };
     }
-    const label = l.kind === 'beacon' ? `Зажечь ${l.name} (${k.cost} масла)`
-      : l.kind === 'oil' ? 'Зажечь фонарь' : `Зажечь ${k.name} (${k.cost} масла)`;
-    const why = st.oil < 1 ? 'Нет масла — собери подсолнухи' : `Нужно ${k.cost} масла`;
+    const cost = kindCost(l.kind);
+    const label = l.kind === 'beacon' ? `Зажечь ${l.name} (${cost} масла)`
+      : l.kind === 'oil' || l.kind === 'stubborn' ? `Зажечь ${k.name}` : `Зажечь ${k.name} (${cost} масла)`;
+    const why = st.oil < 1 ? 'Нет масла — собери подсолнухи' : `Нужно ${cost} масла`;
     if (l.kind === 'gas' || l.kind === 'beacon' || l.kind === 'marsh') tip(l.kind);
-    return { key, label, time: k.hold * hm, ok: st.oil >= k.cost, why, run: () => { fill(l); sfx.light(); } };
+    return { key, label, time: k.hold * hm, ok: st.oil >= cost, why, run: () => { fill(l); sfx.light(); } };
   }
   if (l.kind === 'beacon') {
+    // «Бумажный самолётик»: от маяка — сразу домой, весь Свет цел
+    if (has('homejump')) {
+      return { key, label: `Вернуться домой (+${Math.floor(st.carry)} Света)`, time: 0.8, ok: true, run: () => { st.nightOver = true; sfx.pour(); goHome(true); } };
+    }
     return st.carry >= 1
-      ? { key, label: `Отправить Свет домой (+${Math.floor(st.carry)})`, time: 0.8, ok: true, run: bank }
+      ? { key, label: `Отправить Свет домой (+${Math.floor(st.carry * (has('mail') ? 1.2 : 1))})`, time: 0.8, ok: true, run: bank }
       : null;
   }
   if (!k.drain || l.oil >= lampCap(l) - 1) return null;
@@ -744,8 +798,9 @@ function lampAct(l: Lamp, hm: number): Act | null {
 
 /** Итог мини-игры на маслобойне: mult — насколько удачно крутили ворот. */
 export function finishPress(mult: number) {
-  const oil = Math.max(1, Math.round(st.seeds * mult * (1 + 0.1 * lv('press'))));
+  const oil = Math.max(1, Math.round(st.seeds * mult * (1 + 0.1 * lv('press')))) + (has('pie') ? 2 : 0);
   st.oil += oil;
+  if (has('honey') && st.seeds >= 4) { const n = Math.floor(st.seeds / 4); st.carry += n; st.night.lumens += n; }
   st.seeds = 0;
   unlockPage('oil');
   sfx.press();
@@ -830,14 +885,14 @@ function updateHelpers(dt: number) {
     const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
     h.moving = d > 0.5;
     if (h.moving) {
-      const sp = Math.min(d, 2.4 * (hasKey('fed') ? 1.5 : 1) * dt);
+      const sp = Math.min(d, 2.4 * (has('fed') ? 1.5 : 1) * dt);
       h.x += (dx / d) * sp;
       h.y += (dy / d) * sp;
       h.anim += dt;
       const sx = dx - dy;
       if (Math.abs(sx) > 0.05) h.face = Math.sign(sx);
     } else if (h.tgt) {
-      if ('oil' in h.tgt) fill(h.tgt);
+      if ('oil' in h.tgt) fill(h.tgt, has('fullpour'));
       else harvest(h.tgt);
       h.tgt = null;
     }
@@ -846,14 +901,26 @@ function updateHelpers(dt: number) {
 
 function updateNight(dt: number) {
   // ручной фонарь — таймер смены
-  st.lantern = Math.max(0, st.lantern - dt);
+  // «Чай у ворота»: у маслобойни фонарь тратится вдвое медленнее
+  const atPress = has('tea') && world.presses.some((pr) => Math.hypot(pr.x + 0.5 - st.player.x, pr.y + 0.5 - st.player.y) < 3);
+  st.lantern = Math.max(0, st.lantern - dt * (atPress ? 0.5 : 1));
+  if (st.lantern <= 0 && has('spare') && !st.spareUsed) {
+    st.spareUsed = true;
+    addTime(8);
+    sparkSay('Запасной фитиль! Ещё 8 секунд — скорее!', 4);
+  }
   if (st.lantern <= 0) { endNight(); return; }
+  // «Совиный слух»: дом жителя рядом — розовая стрелка
+  if (has('ear') && !st.pointTo) {
+    const h = world.houses.find((x) => !st.met.includes(x.rid) && Math.hypot(x.x + 1 - st.player.x, x.y + 1 - st.player.y) < 12);
+    if (h) st.pointTo = h.rid;
+  }
 
   for (const l of world.lamps) {
     if (l.kindled > 0) l.kindled = Math.max(0, l.kindled - dt);
     if (!burning(l)) continue;
     // «Братство огней»: рядом горит другой фонарь — масло тратится медленнее
-    const friends = hasKey('brotherhood') && world.lamps.some((o) => o !== l && burning(o) && Math.hypot(o.x - l.x, o.y - l.y) < 7);
+    const friends = has('brotherhood') && world.lamps.some((o) => o !== l && burning(o) && Math.hypot(o.x - l.x, o.y - l.y) < 7);
     l.oil = Math.max(0, l.oil - drain() * KINDS[l.kind].drain * (friends ? 0.6 : 1) * dt);
     if (l.oil <= 0) { l.lit = false; sfx.out(); tip('out'); continue; }
     // упрямый фонарь на побережье: порыв ветра может его задуть (масло останется)
@@ -861,7 +928,7 @@ function updateNight(dt: number) {
       l.gust -= dt;
       if (l.gust <= 0) {
         l.gust = 14 + Math.random() * 10;
-        if (!hasKey('calm') && Math.random() < 0.6) { l.lit = false; sfx.out(); tip('wind'); }
+        if (!has('calm') && Math.random() < 0.6) { l.lit = false; sfx.out(); tip('wind'); }
       }
     }
   }
@@ -877,7 +944,7 @@ function updateNight(dt: number) {
     // болотный фонарь рядом — растут вдвое быстрее
     // «Солнечные грядки» — вдвое быстрее у любого горящего фонаря, иначе только у болотного
     const near = (l: Lamp) => burning(l) && Math.hypot(l.x - f.x, l.y - f.y) < lampRadius(l);
-    const fast = world.lamps.some((l) => (l.kind === 'marsh' || hasKey('sunbeds')) && near(l));
+    const fast = world.lamps.some((l) => (l.kind === 'marsh' || has('sunbeds')) && near(l));
     f.grow += (dt / growTime()) * (fast ? 2 : 1);
     if (f.grow >= 1) { f.stage++; f.grow = 0; }
   }
@@ -894,7 +961,8 @@ function updateNight(dt: number) {
   if (st.knownAcc > 0.15) {
     st.knownAcc = 0;
     let changed = false;
-    for (const s of ls) {
+    for (const s0 of ls) {
+      const s = s0.id === -1 && has('reveal') ? { ...s0, r: s0.r + 1 } : s0;
       const r = Math.ceil(s.r);
       for (let ty = Math.floor(s.y) - r; ty <= Math.floor(s.y) + r; ty++) {
         for (let tx = Math.floor(s.x) - r; tx <= Math.floor(s.x) + r; tx++) {
@@ -959,7 +1027,7 @@ const SAVE_KEY = 'lamplighter-save-v2';
 
 export function save() {
   const data = {
-    lumens: st.lumens, up: st.up, stars: st.stars, met: st.met, movedIn: st.movedIn, quests: st.quests,
+    lumens: st.lumens, up: st.up, stars: st.stars, skyV: SKY_VERSION, met: st.met, movedIn: st.movedIn, quests: st.quests,
     nights: st.nights, notesRead: st.notesRead, seen: st.seen, tips: st.tips, dryNights: st.dryNights,
     hasJournal: st.hasJournal, journal: st.journal, journalNew: st.journalNew, beacons: st.beacons,
     known: Array.from(st.known).join(''),
@@ -984,7 +1052,22 @@ export function load(): boolean {
     st.lumens += refund;
     st.events.push(`Улучшения переехали на звёздное небо. Возвращено ${refund} Света — зажги звёзды у телескопа`);
   }
-  st.stars = Array.isArray(data.stars) && data.stars.includes('center') ? data.stars : ['center'];
+  const saved: string[] = (Array.isArray(data.stars) ? data.stars : []).filter((id: string) => id !== 'center');
+  if (data.skyV === SKY_VERSION) st.stars = ['center', ...saved.filter((id) => STARS.some((x) => x.id === id))];
+  else {
+    // небо перерисовали: звёзды стоят по-другому — возвращаем Свет за прежние, зажигай заново
+    let back = 0;
+    saved.forEach((id, i) => {
+      const old = STARS.find((x) => x.id === id);
+      const base = old ? (6 + old.dist / 12) * (old.size === 'big' ? 1.8 : old.size === 'key' ? 3 : 1) : 20;
+      back += Math.ceil(base * (1 + 0.05 * i));
+    });
+    st.stars = ['center'];
+    if (back > 0) {
+      st.lumens += back;
+      st.events.push(`Небо обновилось: теперь каждая звезда своя. Возвращено ${back} Света — зажги звёзды заново`);
+    }
+  }
   skyVer++;
   st.met = data.met ?? [];
   st.movedIn = data.movedIn ?? [];

@@ -273,6 +273,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 }
 .sky-sum b { color: var(--warm); font-weight: 400; display: block; margin-bottom: 2px; }
 .sky-sum .k { color: #ffe9a8; }
+.sky-sum .more { color: var(--dim); }
 
 .sky-dust circle { fill: #6a6890; opacity: 0.35; }
 .sky-svg line { stroke: #3a3660; stroke-width: 1.2; opacity: 0.5; }
