@@ -141,7 +141,7 @@ export class NightView implements View {
       const g = new Graphics();
       this.place(g, h.x, h.y, h.x + h.y + 2);
       const lit = () => this.main && st.met.includes(h.rid);
-      dyn(() => String(lit()), () => drawHouse(g.clear(), lit(), ROOFS[h.rid]));
+      dyn(() => String(lit()), () => drawHouse(g.clear(), lit(), h.rid));
     }
     for (const pr of w.presses) {
       const g = new Graphics();

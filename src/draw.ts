@@ -5,7 +5,9 @@ import { Graphics, Texture } from 'pixi.js';
 import { TW, TH, toScreen } from './iso';
 import type { Lamp, Flower } from './map';
 import { burning, lampCap } from './game';
-import { BIOMES, ROOFS, shade, type Biome } from './palette';
+import { BIOMES, shade, type Biome } from './palette';
+import { drawHouse } from './houses';
+export { drawHouse };
 
 export const hash = (x: number, y: number) => {
   const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
@@ -223,74 +225,6 @@ export function isoBox(g: Graphics, w: number, d: number, h: number, left: numbe
   g.poly([b.x, b.y, r.x, r.y, r.x, r.y - h, b.x, b.y - h]).fill(right);
   g.poly([0, -h, r.x, r.y - h, b.x, b.y - h, l.x, l.y - h]).fill(top);
   return { r, b, l };
-}
-
-export function drawHouse(g: Graphics, met: boolean, roof = ROOFS.home) {
-  // рисуем от верхнего угла основания, а позицию ставим так, чтобы центр совпал с центром 2×2
-  const H0 = 16;
-  const { r, b, l } = isoBox(g, 2, 2, H0, 0xf2e2c2, 0xc8ae88, 0x6b4f36);
-  // цоколь из камня с швами, угловой брус и брусья под крышей
-  g.poly([l.x, l.y, b.x, b.y, b.x, b.y - 3, l.x, l.y - 3]).fill(0xa49c90);
-  g.poly([b.x, b.y, r.x, r.y, r.x, r.y - 3, b.x, b.y - 3]).fill(0x7e776c);
-  for (let k = 1; k < 4; k++) {
-    const u = k / 4;
-    g.rect(l.x + (b.x - l.x) * u, l.y + (b.y - l.y) * u - 3, 1, 3).fill(0x8a8276);
-    g.rect(b.x + (r.x - b.x) * u, b.y + (r.y - b.y) * u - 3, 1, 3).fill(0x66605a);
-  }
-  g.rect(b.x - 1, b.y - H0, 2, H0 - 2).fill(0x6b4423);
-  g.poly([l.x, l.y - H0, b.x, b.y - H0, b.x, b.y - H0 + 2, l.x, l.y - H0 + 2]).fill(0x8a5a32);
-  g.poly([b.x, b.y - H0, r.x, r.y - H0, r.x, r.y - H0 + 2, b.x, b.y - H0 + 2]).fill(0x6b4423);
-  // труба (за крышей — рисуем раньше)
-  const ch = toScreen(1.5, 0.5);
-  g.rect(ch.x - 2, ch.y - 40, 5, 12).fill(0x8a4a34);
-  g.rect(ch.x + 1, ch.y - 40, 2, 12).fill(0x6a3426);
-  g.rect(ch.x - 3, ch.y - 42, 7, 2).fill(0x5a2a1e);
-  // крыша: четыре ската, черепица рядами
-  const apex = { x: 0, y: b.y / 2 - H0 - 24 };
-  g.poly([0, -H0, l.x, l.y - H0, apex.x, apex.y]).fill(shade(roof, 0.62));
-  g.poly([r.x, r.y - H0, 0, -H0, apex.x, apex.y]).fill(shade(roof, 0.72));
-  g.poly([l.x, l.y - H0 + 1, b.x, b.y - H0 + 1, apex.x, apex.y]).fill(roof);
-  g.poly([b.x, b.y - H0 + 1, r.x, r.y - H0 + 1, apex.x, apex.y]).fill(shade(roof, 0.8));
-  const lerp = (p: { x: number; y: number }, k: number) => ({ x: p.x + (apex.x - p.x) * k, y: p.y + (apex.y - p.y) * k });
-  for (const k of [0.22, 0.44, 0.66]) {
-    for (const [p0, p1, col] of [[{ x: l.x, y: l.y - H0 + 1 }, { x: b.x, y: b.y - H0 + 1 }, shade(roof, 0.82)],
-      [{ x: b.x, y: b.y - H0 + 1 }, { x: r.x, y: r.y - H0 + 1 }, shade(roof, 0.66)]] as const) {
-      const a0 = lerp(p0, k), a1 = lerp(p1, k);
-      g.poly([a0.x, a0.y, a1.x, a1.y, a1.x, a1.y + 1, a0.x, a0.y + 1]).fill(col);
-    }
-  }
-  // светлый край крыши — со стороны света; тёмный карниз
-  g.poly([l.x, l.y - H0 + 1, apex.x, apex.y, apex.x + 1, apex.y + 2, l.x + 2, l.y - H0 + 1]).fill(shade(roof, 1.25));
-  g.poly([l.x, l.y - H0 + 1, b.x, b.y - H0 + 1, b.x, b.y - H0 + 2, l.x, l.y - H0 + 2]).fill(shade(roof, 0.5));
-  g.poly([b.x, b.y - H0 + 1, r.x, r.y - H0 + 1, r.x, r.y - H0 + 2, b.x, b.y - H0 + 2]).fill(shade(roof, 0.42));
-  // дверь на левой стене, ступенька у порога
-  const dx = (l.x + b.x) / 2, dy = (l.y + b.y) / 2;
-  g.poly([dx - 5, dy + 1, dx + 4, dy + 5.5, dx + 7, dy + 4, dx - 2, dy - 0.5]).fill(0x9a948a);
-  g.poly([dx - 4, dy - 2, dx + 3, dy + 1.5, dx + 3, dy - 10, dx - 4, dy - 13]).fill(0x5a3018);
-  g.poly([dx - 3, dy - 1.5, dx + 2, dy + 1, dx + 2, dy - 9, dx - 3, dy - 11.5]).fill(0x9a5a2c);
-  g.poly([dx - 3, dy - 6, dx + 2, dy - 3.5, dx + 2, dy - 2.5, dx - 3, dy - 5]).fill(0x7a4422);
-  g.rect(dx + 1, dy - 5, 1, 1).fill(0xffd23a);
-  // окна: на правой стене и маленькое на левой; горят, когда житель знакомый
-  const lit = met ? 0xffd27a : 0x2a3a5a;
-  const win = (wx: number, wy: number, dir: number, shutter: number) => {
-    g.poly([wx - 3, wy - 5.5 * dir, wx + 3, wy - 8.5, wx + 3, wy - 13.5, wx - 3, wy - 10.5]).fill(0xf0e6d0);
-    g.poly([wx - 2, wy - 6.5, wx + 2, wy - 8.5, wx + 2, wy - 12.5, wx - 2, wy - 10.5]).fill(lit);
-    g.rect(wx, wy - 11, 1, 3).fill(0xf0e6d0); // переплёт
-    if (met) g.rect(wx - 1, wy - 11, 1, 1).fill(0xfff4c8);
-    g.poly([wx - 5, wy - 4.5, wx - 3, wy - 5.5, wx - 3, wy - 10.5, wx - 5, wy - 9.5]).fill(shutter);
-    g.poly([wx + 3, wy - 8.5, wx + 5, wy - 9.5, wx + 5, wy - 14.5, wx + 3, wy - 13.5]).fill(shade(shutter, 0.8));
-  };
-  const wx = (b.x + r.x) / 2, wy = (b.y + r.y) / 2;
-  win(wx, wy, 1, shade(roof, 0.9));
-  // ящик с цветами под окном
-  g.poly([wx - 3, wy - 4.5, wx + 3, wy - 7.5, wx + 3, wy - 5.5, wx - 3, wy - 2.5]).fill(0x8a5a32);
-  g.rect(wx - 2, wy - 6, 1, 1).fill(0xff7aa8);
-  g.rect(wx, wy - 7, 1, 1).fill(0xffffff);
-  g.rect(wx + 1, wy - 8, 1, 1).fill(0xffd23a);
-  // маленькое круглое окошко на левой стене, у угла
-  const ox = l.x + (b.x - l.x) * 0.2, oy = l.y + (b.y - l.y) * 0.2 - 10;
-  g.circle(ox, oy, 2).fill(0xf0e6d0);
-  g.circle(ox, oy, 1.2).fill(lit);
 }
 
 /** Маслобойня: винтовой пресс на деревянной раме, колесо-ворот, бочка с маслом и мешок семечек. */
