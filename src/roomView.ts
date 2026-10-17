@@ -8,6 +8,7 @@ import { QUESTS, residentById, type ResidentId } from './story';
 import { hash, diamond, drawPerson, drawTelescope, drawPlanter, drawAnvil, drawMapTable, drawMailbag, drawPerch, drawOven, drawFireplace } from './draw';
 import type { View } from './render';
 import { Figure } from './figure';
+import { charTex } from './sprites';
 
 const WALL_H = 52;
 
@@ -66,7 +67,13 @@ export class RoomView implements View {
       if (s.id === 'nika') drawMapTable(g);
       if (s.id === 'seva') drawMailbag(g);
       let npc: Figure | null = null;
-      if (s.id !== 'scope' && s.id !== 'filin') {
+      if (s.id === 'filin') {
+        // Филин сидит на насесте: ставим фигуру на жёрдочку
+        npc = new Figure();
+        const at = stationCenter(s);
+        this.place(npc, at.x, at.y, at.x + at.y + 0.1);
+        npc.y -= 17;
+      } else if (s.id !== 'scope') {
         npc = new Figure();
         this.place(npc, s.npc.x, s.npc.y, s.npc.x + s.npc.y);
       }
@@ -85,7 +92,7 @@ export class RoomView implements View {
       if (f.npc) f.npc.visible = open;
       if (!open) continue;
       if (f.s.id === 'scope') drawTelescope(f.g.clear(), t);
-      if (f.s.id === 'filin') drawPerch(f.g.clear(), t);
+      if (f.s.id === 'filin') drawPerch(f.g.clear(), t, !charTex('filin', false, 0));
       if (f.s.id === 'mila') drawOven(f.g.clear(), t);
       if (f.npc) {
         const r = residentById(f.s.id as ResidentId);

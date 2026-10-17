@@ -382,70 +382,154 @@ export function drawBench(g: Graphics) {
   g.rect(c.x + 8, c.y - 13, 3, 3).fill(0xffd36b); // фонарь на починке
 }
 
-/** Телескоп на треноге: через него видно звёздное небо. t — чтобы линза поблёскивала. */
+/** Телескоп на треноге: латунная труба смотрит в небо, линза поблёскивает. */
 export function drawTelescope(g: Graphics, t: number) {
   const c = toScreen(0.5, 0.5);
   const x = c.x, y = c.y;
+  g.ellipse(x, y + 1, 8, 2.5).fill({ color: 0x000000, alpha: 0.25 });
   // тренога
-  g.rect(x - 6, y - 8, 1, 8).fill(0x5a3a1e);
-  g.rect(x + 5, y - 8, 1, 8).fill(0x5a3a1e);
-  g.rect(x, y - 9, 1, 10).fill(0x6b4423);
-  g.rect(x - 5, y - 10, 11, 2).fill(0x7a5232);
-  // труба смотрит в небо (ступеньками — пиксельная наклонная линия)
-  for (let i = 0; i < 8; i++) g.rect(x - 6 + i * 2, y - 12 - i * 2, 4, 3).fill(i < 3 ? 0xb8862e : 0xd8a84a);
-  g.rect(x + 8, y - 28, 4, 4).fill(0xe8c060);
-  // блик на линзе
-  if (Math.sin(t * 2) > 0.6) g.rect(x + 10, y - 27, 1, 1).fill(0xffffff);
-  else g.rect(x + 10, y - 27, 1, 1).fill(0x9ad0ff);
-}
-
-export function drawPlanter(g: Graphics) {
-  isoBox(g, 1, 2, 7, 0x7a5232, 0x8f6238, 0x4a3220);
-  for (const [x, y, flower] of [[0.5, 0.4, 0], [0.5, 1, 1], [0.5, 1.6, 0]] as const) {
-    const c = toScreen(x, y);
-    g.rect(c.x, c.y - 14, 1, 7).fill(0x3e9a40);
-    g.rect(c.x + 1, c.y - 11, 2, 1).fill(0x5cbf4a);
-    if (flower) {
-      g.rect(c.x - 2, c.y - 18, 5, 5).fill(0xffd23a);
-      g.rect(c.x - 1, c.y - 17, 3, 3).fill(0x6b3e1a);
-    } else g.rect(c.x - 1, c.y - 16, 3, 2).fill(0x7acc50);
+  g.poly([x - 7, y + 1, x - 6, y + 1, x - 1, y - 10, x - 2, y - 10]).fill(0x5a3a1e);
+  g.poly([x + 6, y + 1, x + 7, y + 1, x + 1, y - 10, x, y - 10]).fill(0x4a2e18);
+  g.rect(x, y - 10, 1, 12).fill(0x6b4423);
+  g.rect(x - 3, y - 12, 7, 2).fill(0x7a5232);
+  // труба (ступеньками): тёмная сторона, светлая полоса блика, латунные кольца
+  for (let i = 0; i < 8; i++) {
+    const px = x - 6 + i * 2, py = y - 12 - i * 2;
+    g.rect(px, py, 4, 3).fill(i < 3 ? 0xa8762a : 0xc8963e);
+    g.rect(px, py, 4, 1).fill(i < 3 ? 0xc8963e : 0xf0c870);
   }
+  for (const i of [2, 5]) g.rect(x - 6 + i * 2, y - 13 - i * 2, 1, 5).fill(0x6a4a1a);
+  g.rect(x - 8, y - 10, 3, 3).fill(0x3a2a1a); // окуляр
+  g.rect(x + 8, y - 29, 5, 5).fill(0xe8c060);
+  g.rect(x + 9, y - 28, 3, 3).fill(0x3a5a8a);
+  // блик на линзе
+  g.rect(x + 10, y - 27, 1, 1).fill(Math.sin(t * 2) > 0.6 ? 0xffffff : 0x9ad0ff);
 }
 
+/** Огород Агаты на подоконнике: ящик с землёй, рассада, два подсолнуха и лейка. */
+export function drawPlanter(g: Graphics) {
+  isoBox(g, 1, 2, 7, 0x8f6238, 0x6e4a2a, 0x4a3220);
+  // доски ящика
+  for (let k = 1; k < 3; k++) {
+    const l = toScreen(0, 2), b = toScreen(1, 2);
+    g.rect(l.x, l.y - k * 2.5, b.x - l.x, 1).fill(0x7a5232);
+  }
+  for (const [x, y, flower] of [[0.5, 0.35, 0], [0.5, 0.75, 2], [0.5, 1.15, 1], [0.5, 1.6, 0]] as const) {
+    const c = toScreen(x, y);
+    if (flower === 2) { // маленький росток
+      g.rect(c.x, c.y - 10, 1, 3).fill(0x4caf50);
+      g.rect(c.x - 1, c.y - 11, 1, 1).fill(0x7acc50); g.rect(c.x + 1, c.y - 11, 1, 1).fill(0x7acc50);
+      continue;
+    }
+    g.rect(c.x, c.y - 15, 1, 8).fill(0x3e9a40);
+    g.rect(c.x + 1, c.y - 11, 2, 1).fill(0x5cbf4a);
+    g.rect(c.x - 2, c.y - 13, 2, 1).fill(0x7acc50);
+    if (flower) {
+      g.rect(c.x - 2, c.y - 19, 5, 5).fill(0xffd23a);
+      g.rect(c.x - 1, c.y - 20, 3, 7).fill(0xffd23a);
+      g.rect(c.x - 3, c.y - 18, 7, 3).fill(0xffd23a);
+      g.rect(c.x - 1, c.y - 18, 3, 3).fill(0x6b3e1a);
+      g.rect(c.x - 2, c.y - 19, 1, 1).fill(0xfff07a);
+    } else g.rect(c.x - 1, c.y - 17, 3, 2).fill(0x7acc50);
+  }
+  // лейка у ящика
+  const w = toScreen(1.25, 1.9);
+  g.ellipse(w.x, w.y, 4, 1.5).fill({ color: 0x000000, alpha: 0.25 });
+  g.rect(w.x - 3, w.y - 6, 6, 6).fill(0x5a8ab0);
+  g.rect(w.x - 3, w.y - 6, 2, 6).fill(0x7aaad0);
+  g.poly([w.x + 3, w.y - 3, w.x + 8, w.y - 8, w.x + 8, w.y - 7, w.x + 3, w.y - 2]).fill(0x5a8ab0);
+  g.rect(w.x - 2, w.y - 9, 4, 1).fill(0x3a6a90);
+}
+
+/** Наковальня на пне: молот рядом, на ней остывает раскалённая подкова. */
 export function drawAnvil(g: Graphics) {
-  isoBox(g, 1, 1, 6, 0x6b4423, 0x7a5232, 0x9a6e40);
+  isoBox(g, 1, 1, 6, 0x6b4423, 0x5a3a1e, 0x9a6e40);
   const c = toScreen(0.5, 0.5);
-  g.rect(c.x - 3, c.y - 10, 6, 4).fill(0x44444e);
-  g.rect(c.x - 6, c.y - 13, 12, 3).fill(0x5a5a66);
-  g.poly([c.x + 6, c.y - 13, c.x + 10, c.y - 12, c.x + 6, c.y - 10]).fill(0x5a5a66);
-  g.rect(c.x - 5, c.y - 13, 9, 1).fill(0x8a8a96);
+  // годовые кольца на срезе пня
+  g.ellipse(c.x, c.y - 6, 7, 3.2).fill(0xa87a48);
+  g.ellipse(c.x, c.y - 6, 4.5, 2).fill(0x9a6e40);
+  g.ellipse(c.x, c.y - 6, 2, 1).fill(0x8a5e34);
+  // наковальня: ножка, тело, рог
+  g.rect(c.x - 3, c.y - 10, 6, 4).fill(0x3a3a44);
+  g.rect(c.x - 4, c.y - 11, 8, 1).fill(0x2a2a34);
+  g.rect(c.x - 6, c.y - 14, 12, 3).fill(0x55555f);
+  g.poly([c.x + 6, c.y - 14, c.x + 11, c.y - 13, c.x + 6, c.y - 11]).fill(0x55555f);
+  g.rect(c.x - 6, c.y - 14, 12, 1).fill(0x8a8a96);
+  g.rect(c.x - 6, c.y - 11, 12, 1).fill(0x3a3a44);
+  // раскалённая подкова
+  g.rect(c.x - 3, c.y - 15, 4, 1).fill(0xff8a2a);
+  g.rect(c.x - 3, c.y - 16, 1, 1).fill(0xffc040);
+  g.rect(c.x, c.y - 16, 1, 1).fill(0xffc040);
+  // молот прислонён к пню
+  g.rect(c.x + 8, c.y - 9, 1, 8).fill(0x8a5a32);
+  g.rect(c.x + 6, c.y - 11, 5, 3).fill(0x5a5a66);
+  g.rect(c.x + 6, c.y - 11, 5, 1).fill(0x8a8a96);
 }
 
+/** Стол Ники с картой: река, дороги, красный маршрут, чернильница с пером и свеча. */
 export function drawMapTable(g: Graphics) {
-  isoBox(g, 2, 1, 9, 0x7a5232, 0x8f6238, 0xa87a48);
+  isoBox(g, 2, 1, 9, 0x7a5232, 0x5e3e22, 0xa87a48);
   const p = (x: number, y: number) => { const s = toScreen(x, y); return [s.x, s.y - 9]; };
-  g.poly([...p(0.2, 0.15), ...p(1.8, 0.15), ...p(1.8, 0.85), ...p(0.2, 0.85)]).fill(0xe8d8b0);
-  const [ax, ay] = p(0.5, 0.5), [bx, by] = p(1.4, 0.4);
-  g.rect(ax, ay, bx - ax, 1).fill(0xb08a5a);
-  g.rect(ax - 1, ay - 1, 2, 2).fill(0xd04030);
-  g.rect(bx - 1, by - 1, 2, 2).fill(0xffb020);
+  // ножки
+  for (const [x, y] of [[0.1, 0.9], [1.9, 0.9]]) { const [sx, sy] = p(x, y); g.rect(sx - 1, sy, 2, 8).fill(0x4a2e18); }
+  // бумага карты
+  g.poly([...p(0.2, 0.15), ...p(1.8, 0.15), ...p(1.8, 0.85), ...p(0.2, 0.85)]).fill(0xece0bc);
+  g.poly([...p(0.2, 0.8), ...p(1.8, 0.8), ...p(1.8, 0.85), ...p(0.2, 0.85)]).fill(0xc8b890);
+  // река и лес
+  for (let i = 0; i < 6; i++) { const [x, y] = p(0.55 + Math.sin(i) * 0.08, 0.2 + i * 0.11); g.rect(x, y, 2, 1).fill(0x4a8ad0); }
+  for (const [u, v] of [[1.5, 0.3], [1.6, 0.45], [1.4, 0.5]]) { const [x, y] = p(u, v); g.rect(x, y - 1, 1, 2).fill(0x3a8a3a); }
+  // красный маршрут пунктиром и крестик
+  const [ax, ay] = p(0.4, 0.6), [bx, by] = p(1.3, 0.35);
+  for (let k = 0; k <= 6; k++) if (k % 2 === 0) g.rect(ax + (bx - ax) * (k / 6), ay + (by - ay) * (k / 6), 1, 1).fill(0xd04030);
+  g.rect(bx - 1, by - 1, 1, 1).fill(0xd04030); g.rect(bx + 1, by - 1, 1, 1).fill(0xd04030);
+  g.rect(bx, by, 1, 1).fill(0xd04030); g.rect(bx - 1, by + 1, 1, 1).fill(0xd04030); g.rect(bx + 1, by + 1, 1, 1).fill(0xd04030);
+  // чернильница с пером
+  const [ix, iy] = p(1.65, 0.7);
+  g.rect(ix - 1, iy - 3, 3, 3).fill(0x1a1a2a);
+  g.rect(ix, iy - 9, 1, 6).fill(0xf0ece0);
+  g.rect(ix + 1, iy - 9, 1, 3).fill(0xd8d0c0);
+  // свеча
+  const [cx, cy] = p(0.3, 0.3);
+  g.rect(cx, cy - 5, 2, 5).fill(0xf4ecd8);
+  g.rect(cx, cy - 7, 2, 2).fill(0xffd36b);
+  g.rect(cx, cy - 8, 1, 1).fill(0xffffff);
 }
 
+/** Почтовая сумка Севы: кожаная, с клапаном и пряжкой, из неё торчат письма; рядом стопка, перевязанная бечёвкой. */
 export function drawMailbag(g: Graphics) {
   const c = toScreen(0.5, 0.5);
-  g.ellipse(c.x, c.y, 8, 3).fill({ color: 0x000000, alpha: 0.25 });
-  g.ellipse(c.x, c.y - 5, 7, 6).fill(0x8a6a3a);
-  g.rect(c.x - 4, c.y - 13, 4, 5).fill(0xf0ead8);
-  g.rect(c.x + 1, c.y - 14, 4, 5).fill(0xe0d8c0);
-  g.rect(c.x - 7, c.y - 8, 14, 2).fill(0x6a4a24);
+  g.ellipse(c.x, c.y, 9, 3).fill({ color: 0x000000, alpha: 0.25 });
+  // письма в сумке
+  g.rect(c.x - 5, c.y - 14, 4, 6).fill(0xf4ecd8);
+  g.rect(c.x - 1, c.y - 15, 4, 6).fill(0xe8dcc0);
+  g.rect(c.x + 2, c.y - 13, 3, 5).fill(0xf0e4c8);
+  g.rect(c.x, c.y - 13, 1, 1).fill(0xc83a32);
+  // сумка
+  g.ellipse(c.x, c.y - 5, 7, 6).fill(0x8a5a2a);
+  g.ellipse(c.x - 2, c.y - 6, 4, 4).fill(0xa8703a);
+  g.poly([c.x - 7, c.y - 9, c.x + 7, c.y - 9, c.x + 6, c.y - 4, c.x - 6, c.y - 4]).fill(0x6a4220); // клапан
+  g.rect(c.x - 1, c.y - 6, 3, 2).fill(0xd8b050);
+  g.rect(c.x - 7, c.y - 10, 14, 1).fill(0x5a361a);
+  // стопка писем рядом
+  g.rect(c.x + 6, c.y - 3, 6, 3).fill(0xf0e4c8);
+  g.rect(c.x + 6, c.y - 5, 6, 2).fill(0xf8f0dc);
+  g.rect(c.x + 8, c.y - 5, 1, 5).fill(0xa87a48);
 }
 
-export function drawPerch(g: Graphics, t: number) {
+/** Насест Филина: Т-образная жёрдочка на подставке, под ней пёрышки. owl — нарисовать сову кодом (если нет картинки). */
+export function drawPerch(g: Graphics, t: number, owl = true) {
   const c = toScreen(0.5, 0.5);
-  g.ellipse(c.x, c.y, 6, 2).fill({ color: 0x000000, alpha: 0.25 });
-  g.rect(c.x - 1, c.y - 18, 2, 18).fill(0x5a3a1e);
-  g.rect(c.x - 6, c.y - 19, 12, 2).fill(0x6b4423);
-  // сова
+  g.ellipse(c.x, c.y, 7, 2.5).fill({ color: 0x000000, alpha: 0.25 });
+  g.ellipse(c.x, c.y - 1, 5, 2).fill(0x5a3a1e);
+  g.rect(c.x - 1, c.y - 18, 2, 17).fill(0x6b4423);
+  g.rect(c.x - 1, c.y - 18, 1, 17).fill(0x8a5a32);
+  g.rect(c.x - 7, c.y - 19, 14, 2).fill(0x7a5232);
+  g.rect(c.x - 7, c.y - 19, 14, 1).fill(0xa87a48);
+  g.rect(c.x + 5, c.y - 17, 1, 3).fill(0x8a8a96); // колечко
+  // пёрышки на полу
+  g.rect(c.x + 4, c.y + 1, 3, 1).fill(0xb0a07c);
+  g.rect(c.x - 6, c.y, 2, 1).fill(0x8a7a5a);
+  if (!owl) return;
   const blink = Math.floor(t * 0.7) % 6 === 0 ? 1 : 2;
   g.ellipse(c.x, c.y - 25, 5, 6).fill(0x7a6a50);
   g.ellipse(c.x, c.y - 23, 3, 3).fill(0xa89878);
@@ -455,23 +539,81 @@ export function drawPerch(g: Graphics, t: number) {
   g.poly([c.x + 5, c.y - 30, c.x + 3, c.y - 33, c.x + 2, c.y - 30]).fill(0x7a6a50);
 }
 
+/** Печь Милы: кирпичная, арка с огнём, на полке хлеб, рядом лопата для хлеба. */
 export function drawOven(g: Graphics, t: number) {
-  isoBox(g, 2, 1, 20, 0x9a4a32, 0xb0583a, 0x7a3a28);
-  frontQuad(g, 2, 1, 0.3, 0.7, 3, 12, 0x2a120a);
+  isoBox(g, 2, 1, 20, 0xb0583a, 0x8a4430, 0x7a3a28);
+  // кирпичная кладка на передней стенке
+  for (let v = 2; v < 20; v += 4) {
+    frontQuad(g, 2, 1, 0, 1, v, v + 0.6, 0x8a4430);
+    for (let u = (v / 4) % 2 ? 0.08 : 0.16; u < 1; u += 0.16) frontQuad(g, 2, 1, u, u + 0.02, v, v + 4, 0x8a4430);
+  }
+  // арка и огонь
+  frontQuad(g, 2, 1, 0.28, 0.72, 2, 13, 0x5a2a1e);
+  frontQuad(g, 2, 1, 0.32, 0.68, 2, 12, 0x2a120a);
   const flick = Math.sin(t * 8) > 0 ? 1 : 0;
-  frontQuad(g, 2, 1, 0.36, 0.64, 3, 7 + flick, 0xff8a2a);
+  frontQuad(g, 2, 1, 0.36, 0.64, 2, 6 + flick, 0xff8a2a);
+  frontQuad(g, 2, 1, 0.42, 0.58, 2, 4 + flick, 0xffd36b);
+  frontQuad(g, 2, 1, 0.34, 0.66, 2, 3, 0x6a3a1a); // поленья
+  // полка с хлебом сверху
+  const top = (x: number, y: number) => { const s = toScreen(x, y); return [s.x, s.y - 20]; };
+  for (const [u, v] of [[0.5, 0.4], [1.0, 0.5], [1.5, 0.4]]) {
+    const [bx, by] = top(u, v);
+    g.ellipse(bx, by - 2, 4, 2.2).fill(0xc8803a);
+    g.ellipse(bx - 1, by - 3, 2.5, 1.2).fill(0xe8a85a);
+    g.rect(bx - 1, by - 2, 2, 1).fill(0xa8642a);
+  }
+  // труба
   const c = toScreen(1.6, 0.3);
-  g.rect(c.x - 2, c.y - 34, 5, 14).fill(0x7a3a28);
+  g.rect(c.x - 2, c.y - 36, 5, 16).fill(0x7a3a28);
+  g.rect(c.x + 1, c.y - 36, 2, 16).fill(0x5a2a1e);
+  // лопата для хлеба прислонена сбоку
+  const l = toScreen(2, 1);
+  g.poly([l.x + 1, l.y - 1, l.x + 2, l.y - 1, l.x + 6, l.y - 22, l.x + 5, l.y - 22]).fill(0x9a6e40);
+  g.poly([l.x + 3, l.y - 22, l.x + 8, l.y - 22, l.x + 8, l.y - 29, l.x + 3, l.y - 29]).fill(0xb08050);
 }
 
+/** Камин: каменная кладка, поленья и живой огонь, искры; на полке свечи, часы и баночка. */
 export function drawFireplace(g: Graphics, t: number) {
-  isoBox(g, 2, 1, 30, 0x8a8078, 0x9a9088, 0x6a625a);
+  isoBox(g, 2, 1, 30, 0x9a9088, 0x7e766c, 0x6a625a);
+  // камни на передней стенке
+  for (let v = 0; v < 30; v += 6) {
+    frontQuad(g, 2, 1, 0, 1, v, v + 0.8, 0x6e665e);
+    for (let u = (v / 6) % 2 ? 0.1 : 0.2; u < 1; u += 0.2) frontQuad(g, 2, 1, u, u + 0.025, v, v + 6, 0x6e665e);
+    for (let u = (v / 6) % 2 ? 0.02 : 0.12; u < 1; u += 0.2) frontQuad(g, 2, 1, u, u + 0.06, v + 4, v + 5, 0xb4aaa0);
+  }
+  // топка
+  frontQuad(g, 2, 1, 0.22, 0.78, 2, 18, 0x4a443c);
   frontQuad(g, 2, 1, 0.25, 0.75, 2, 16, 0x1a1210);
+  frontQuad(g, 2, 1, 0.3, 0.7, 2, 4, 0x5a3418); // поленья
+  frontQuad(g, 2, 1, 0.34, 0.5, 4, 5, 0x7a4a26);
   const f1 = Math.sin(t * 9) > 0 ? 2 : 0, f2 = Math.sin(t * 13 + 1) > 0 ? 2 : 0;
-  frontQuad(g, 2, 1, 0.32, 0.5, 2, 9 + f1, 0xff7a20);
-  frontQuad(g, 2, 1, 0.48, 0.68, 2, 8 + f2, 0xffa030);
-  frontQuad(g, 2, 1, 0.42, 0.56, 2, 5, 0xffe08a);
-  frontQuad(g, 2, 1, 0.15, 0.85, 30, 33, 0x5a524a); // полка
+  frontQuad(g, 2, 1, 0.32, 0.5, 4, 11 + f1, 0xff6a1a);
+  frontQuad(g, 2, 1, 0.48, 0.68, 4, 10 + f2, 0xff9a2a);
+  frontQuad(g, 2, 1, 0.38, 0.6, 4, 8, 0xffc850);
+  frontQuad(g, 2, 1, 0.44, 0.54, 4, 6, 0xfff0b0);
+  // искры летят вверх
+  for (let k = 0; k < 3; k++) {
+    const ph = (t * 0.9 + k * 0.37) % 1;
+    frontQuad(g, 2, 1, 0.42 + k * 0.06 + Math.sin(t * 3 + k) * 0.02, 0.43 + k * 0.06 + Math.sin(t * 3 + k) * 0.02, 8 + ph * 8, 9 + ph * 8, 0xffd36b);
+  }
+  // полка
+  frontQuad(g, 2, 1, 0.08, 0.92, 30, 33, 0x6b4423);
+  frontQuad(g, 2, 1, 0.08, 0.92, 32, 33, 0x8a5a32);
+  // на полке: две свечи, часы, баночка
+  const top = (u: number, v: number) => { const l = toScreen(0, 1), b = toScreen(2, 1); return [l.x + (b.x - l.x) * u, l.y + (b.y - l.y) * u - v]; };
+  for (const u of [0.18, 0.82]) {
+    const [x, y] = top(u, 33);
+    g.rect(x, y - 5, 2, 5).fill(0xf4ecd8);
+    g.rect(x, y - 7, 2, 2).fill(Math.sin(t * 7 + u * 9) > 0 ? 0xffd36b : 0xffb040);
+  }
+  const [cx, cy] = top(0.5, 33);
+  g.rect(cx - 3, cy - 7, 6, 7).fill(0x7a4a26);
+  g.circle(cx, cy - 4, 2).fill(0xf4ecd8);
+  g.rect(cx, cy - 5, 1, 1).fill(0x1a1420);
+  g.rect(cx, cy - 4, 1, 1).fill(0x1a1420);
+  const [jx, jy] = top(0.66, 33);
+  g.rect(jx, jy - 4, 3, 4).fill(0x6a9ac8);
+  g.rect(jx, jy - 5, 3, 1).fill(0xa87a48);
 }
 
 // ---------- персонажи сюжета ----------
