@@ -30,8 +30,25 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 
 #screen canvas { display: block; image-rendering: pixelated; }
 
-.panel, #hud, #goal, #timer, #prompt, .toast, #dialog, .modal-box {
-  background: var(--panel); border: 2px solid var(--edge);
+/* пиксельные рамки: латунь с заклёпками для панелей, бумага для диалогов, кнопки с фаской */
+.panel, #hud, #goal, #timer, #prompt, .toast, .modal-box, #menu .menu-box {
+  background: none; border: 8px solid transparent;
+  border-image: url('../art/examples/ui/frame_panel.png') 8 fill / 16px stretch;
+  image-rendering: pixelated;
+}
+#dialog {
+  border: 8px solid transparent;
+  border-image: url('../art/examples/ui/frame_paper.png') 8 fill / 16px stretch;
+  image-rendering: pixelated;
+}
+.menu-list button, .modal-box button:not(#modal-close), .sky-close {
+  border: 6px solid transparent !important;
+  border-image: url('../art/examples/ui/frame_button.png') 6 fill / 12px stretch !important;
+  background: none !important;
+  image-rendering: pixelated;
+}
+.menu-list button:hover, .modal-box button:not(#modal-close):hover, .sky-close:hover {
+  border-image: url('../art/examples/ui/frame_button_hover.png') 6 fill / 12px stretch !important;
 }
 
 #hud {
@@ -99,12 +116,11 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 
 #dialog {
   position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-  width: min(720px, 90vw); padding: 14px 20px 10px; cursor: pointer;
-  border-color: #6a5a8a;
+  width: min(720px, 90vw); padding: 10px 18px 6px; cursor: pointer; color: #2a1e10;
 }
-#dlg-who { color: var(--warm); font-size: 18px; margin-bottom: 4px; }
+#dlg-who { color: #8a4a1a; font-size: 18px; margin-bottom: 4px; }
 #dlg-text { font-size: 21px; line-height: 1.35; }
-.dlg-hint { text-align: right; color: var(--dim); font-size: 14px; margin-top: 6px; animation: pulse 0.8s infinite alternate; }
+.dlg-hint { text-align: right; color: #8a6a4a; font-size: 14px; margin-top: 6px; animation: pulse 0.8s infinite alternate; }
 
 #modal {
   position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
@@ -219,7 +235,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 }
 /* на широком экране меню — справа, на ночной стороне: слева видно солнце, посередине — фонарь */
 @media (min-aspect-ratio: 4/3) { #menu:not(.pause) { justify-content: flex-end; padding-right: 7vw; } }
-#menu .menu-box { background: rgba(8, 6, 20, 0.62); padding: 18px 22px 22px; border: 2px solid var(--edge); box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+#menu .menu-box { padding: 14px 18px 18px; }
 .vol .opt { font: inherit; font-size: 18px; color: var(--warm); background: var(--panel); border: 2px solid var(--edge); padding: 2px 12px; cursor: pointer; }
 #mouse-val { color: var(--dim); min-width: 40px; }
 .credits { color: var(--ink); font-size: 16px; line-height: 1.35; margin-bottom: 8px; }
