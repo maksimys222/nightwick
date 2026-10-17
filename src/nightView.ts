@@ -38,7 +38,9 @@ export class NightView implements View {
   constructor(private w: World, private main: boolean) {
     this.fog = main ? this.makeFog() : null;
     const [back, front] = buildHorizon(w);
-    this.root.addChild(buildGround(w), back, this.objects, front);
+    const ground = buildGround(w);
+    ground.zIndex = -2;
+    this.root.addChild(ground, back, this.objects, front);
     this.build();
   }
 
@@ -393,7 +395,7 @@ function drawBridge(g: Graphics, w: World, fixed: boolean) {
 /** Лес (и море) за краем карты, чтобы мир не обрывался: задний ряд — за всем, передний — перед всем. */
 function buildHorizon(w: World): [Graphics, Graphics] {
   const back = new Graphics(), front = new Graphics();
-  back.zIndex = -1e6;
+  back.zIndex = -1; // над землёй (её zIndex −2), но под всем остальным
   front.zIndex = 1e6;
   const M = 14;
   // за краем карты — сплошной лес: по два дерева на клетку, рисуем от дальних к ближним
