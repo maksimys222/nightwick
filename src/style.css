@@ -230,30 +230,58 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #menu {
   position: fixed; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  /* позади — живая дневная площадь; справа на неё наползает тьма со звёздами */
-  background:
-    radial-gradient(1px 1px at 78% 18%, #fff 50%, transparent 51%),
-    radial-gradient(1px 1px at 86% 32%, #cfd0ff 50%, transparent 51%),
-    radial-gradient(1.5px 1.5px at 92% 12%, #fff 50%, transparent 51%),
-    radial-gradient(1px 1px at 70% 40%, #cfd0ff 50%, transparent 51%),
-    radial-gradient(1px 1px at 95% 52%, #fff 50%, transparent 51%),
-    radial-gradient(1.5px 1.5px at 82% 62%, #fff 50%, transparent 51%),
-    radial-gradient(1px 1px at 74% 75%, #cfd0ff 50%, transparent 51%),
-    radial-gradient(1px 1px at 90% 84%, #fff 50%, transparent 51%),
-    linear-gradient(90deg, rgba(4, 3, 16, 0) 0%, rgba(4, 3, 16, 0.15) 38%, rgba(12, 6, 30, 0.78) 62%, rgba(4, 2, 14, 0.96) 100%);
+  /* сцена: лесная поляна в рамке из лиан, слева солнце, справа дупло */
+  background: #0a140e url('../art/examples/ui/menu_scene.png') center / cover no-repeat;
+  image-rendering: pixelated;
 }
-#menu::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at 30% 35%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.35) 100%);
+#menu.pause { image-rendering: auto; }
+/* светлячки над поляной */
+.fireflies { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#menu.pause .fireflies { display: none; }
+.fireflies i {
+  position: absolute; width: 4px; height: 4px; background: #fff3a0; border-radius: 1px;
+  box-shadow: 0 0 6px 2px rgba(255, 220, 90, 0.7);
+  animation: fly 9s ease-in-out infinite, blink 2.3s ease-in-out infinite;
 }
-#sky[data-state='menu'] { background: linear-gradient(#7ec8f0, rgba(126, 200, 240, 0.4) 60%, rgba(126, 200, 240, 0)); }
-#sky[data-state='menu'] #sun { left: 17%; top: 9vh; animation: sun-bob 4s ease-in-out infinite; }
-@keyframes sun-bob { 50% { transform: translateY(-1.2vh) rotate(4deg); } }
+.fireflies i:nth-child(1) { left: 11%; top: 38%; animation-delay: 0.0s, 0.00s; animation-duration: 7s, 1.8s; }
+.fireflies i:nth-child(2) { left: 48%; top: 21%; animation-delay: 8.3s, 1.93s; animation-duration: 8s, 2.2s; }
+.fireflies i:nth-child(3) { left: 85%; top: 74%; animation-delay: 7.6s, 1.56s; animation-duration: 9s, 2.6s; }
+.fireflies i:nth-child(4) { left: 30%; top: 57%; animation-delay: 6.9s, 1.19s; animation-duration: 10s, 3.0s; }
+.fireflies i:nth-child(5) { left: 67%; top: 40%; animation-delay: 6.2s, 0.82s; animation-duration: 11s, 1.8s; }
+.fireflies i:nth-child(6) { left: 12%; top: 23%; animation-delay: 5.5s, 0.45s; animation-duration: 7s, 2.2s; }
+.fireflies i:nth-child(7) { left: 49%; top: 76%; animation-delay: 4.8s, 0.08s; animation-duration: 8s, 2.6s; }
+.fireflies i:nth-child(8) { left: 86%; top: 59%; animation-delay: 4.1s, 2.01s; animation-duration: 9s, 3.0s; }
+.fireflies i:nth-child(9) { left: 31%; top: 42%; animation-delay: 3.4s, 1.64s; animation-duration: 10s, 1.8s; }
+.fireflies i:nth-child(10) { left: 68%; top: 25%; animation-delay: 2.7s, 1.27s; animation-duration: 11s, 2.2s; }
+.fireflies i:nth-child(11) { left: 13%; top: 78%; animation-delay: 2.0s, 0.90s; animation-duration: 7s, 2.6s; }
+.fireflies i:nth-child(12) { left: 50%; top: 61%; animation-delay: 1.3s, 0.53s; animation-duration: 8s, 3.0s; }
+.fireflies i:nth-child(13) { left: 87%; top: 44%; animation-delay: 0.6s, 0.16s; animation-duration: 9s, 1.8s; }
+.fireflies i:nth-child(14) { left: 32%; top: 27%; animation-delay: 8.9s, 2.09s; animation-duration: 10s, 2.2s; }
+@keyframes fly { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(18px, -14px); } 50% { transform: translate(-10px, -26px); } 75% { transform: translate(-20px, 8px); } }
+@keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 #menu .menu-box { padding: 18px 22px 22px; }
-#menu:not(.pause) .menu-box { background: none; border: none; border-image: none; }
-#menu:not(.pause) #logo { width: 420px; filter: drop-shadow(0 4px 0 #2a1408) drop-shadow(0 0 24px rgba(255, 170, 50, 0.6)); }
+#menu:not(.pause) .menu-box {
+  width: min(400px, 90vw); padding: 26px 34px 30px;
+  border: 15px solid transparent;
+  border-image: url('../art/examples/ui/frame_wood.png') 10 / 30px stretch;
+  background: repeating-linear-gradient(0deg, #2a180c 0 26px, #1e1108 26px 29px) padding-box;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(0, 0, 0, 0.5);
+}
+.menu-sep { height: 2px; margin: 12px 10px 16px; background: linear-gradient(90deg, transparent, #c8963e, transparent); }
+.menu-sep.top { display: none; }
+#menu.pause .menu-sep { display: none; }
+#menu:not(.pause) #logo { width: 300px; filter: drop-shadow(0 4px 0 #2a1408) drop-shadow(0 0 24px rgba(255, 170, 50, 0.6)); }
 #menu:not(.pause) .menu-sub { color: #fff4d8; text-shadow: 0 2px 0 #000, 0 0 8px #000; font-size: 20px; }
-#menu:not(.pause) .menu-list { gap: 12px; padding: 0 30px; }
+#menu:not(.pause) .menu-list { gap: 4px; padding: 0; }
+/* пункты меню на доске — просто надписи; при наведении загораются тёплым светом и огоньком */
+#menu:not(.pause) .menu-list button {
+  border: none !important; border-image: none !important; background: none !important;
+  color: #e8dcc0; font-size: 26px; padding: 6px 0; text-shadow: 0 2px 0 #000;
+}
+#menu:not(.pause) .menu-list button::before { content: '✦ '; visibility: hidden; }
+#menu:not(.pause) .menu-list button::after { content: ' ✦'; visibility: hidden; }
+#menu:not(.pause) .menu-list button:hover { color: #ffd36b; transform: none; text-shadow: 0 0 12px rgba(255, 190, 70, 0.8), 0 2px 0 #000; }
+#menu:not(.pause) .menu-list button:hover::before, #menu:not(.pause) .menu-list button:hover::after { color: #ffd36b; visibility: visible; }
 .menu-list button { font-size: 24px; padding: 10px 0; text-shadow: 0 2px 0 #000; transition: transform 0.08s; }
 .menu-list button:hover { transform: translateY(-2px); }
 .menu-list button:active { transform: translateY(1px); }

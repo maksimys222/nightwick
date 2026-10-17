@@ -92,7 +92,8 @@ export class UI {
   openMenu(mode: 'main' | 'pause') {
     this.menuMode = mode;
     st.menu = true;
-    st.menuBackdrop = mode === 'main';
+    // позади главного меню теперь картина-сцена (лес, солнце, дупло) — живой фон не нужен
+    st.menuBackdrop = false;
     $('menu').hidden = false;
     $('menu').classList.toggle('pause', mode === 'pause');
     $('menu-title').textContent = mode === 'pause' ? 'Пауза' : 'Фонарщик';
