@@ -3,20 +3,26 @@
 
 import { Assets, Texture } from 'pixi.js';
 
-const urls = import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+// сначала образцы (art/examples/…), потом картинки художника — они заменяют образцы с тем же именем
+const urls = {
+  ...(import.meta.glob('../art/examples/lamps/*_{on,off}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+};
 const tex: Record<string, Texture> = {};
 
 export async function loadArt() {
-  await Promise.all(Object.entries(urls).map(async ([path, url]) => {
+  const loaded = await Promise.all(Object.entries(urls).map(async ([path, url]) => {
     const name = path.slice(path.lastIndexOf('/') + 1, -4);
     try {
       const t = await Assets.load<Texture>(url);
       t.source.scaleMode = 'nearest';
-      tex[name] = t;
+      return [name, t] as const;
     } catch (e) {
       console.warn('Не загрузилась картинка', name, e);
+      return null;
     }
   }));
+  for (const x of loaded) if (x) tex[x[0]] = x[1];
 }
 
 /** Картинка по имени файла без .png (например, 'lamp_oil_on'), или undefined, если её ещё нет. */

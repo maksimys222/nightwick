@@ -93,7 +93,8 @@ export class NightView implements View {
       const c = new Container();
       const pic = new Sprite();
       const g = new Graphics();
-      c.addChild(pic, g);
+      const shadow = new Graphics();
+      c.addChild(shadow, pic, g);
       this.place(c, l.x + 0.5, l.y + 0.5);
       dyn(() => `${burning(l)}|${l.everLit}|${l.kindled > 0}|${Math.round((l.oil / lampCap(l)) * 10)}`, () => {
         const t = art(lampArt(l, burning(l)));
@@ -103,6 +104,8 @@ export class NightView implements View {
           // точка опоры шаблона — низ по центру, во второй строке снизу
           pic.position.set(-Math.floor(t.width / 2), -(t.height - 2));
         }
+        shadow.clear();
+        if (t) shadow.ellipse(0, 1, l.kind === 'beacon' ? 9 : 5, l.kind === 'beacon' ? 3.5 : 2).fill({ color: 0x000000, alpha: 0.3 });
         drawLamp(g.clear(), l, !!t);
       });
     }
