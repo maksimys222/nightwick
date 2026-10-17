@@ -28,10 +28,8 @@ export function makePlaza(): Plaza {
   ];
   const houses: House[] = spots.map(([rid, x, y]) => { solid(x, y, 2, 2); return { rid, x, y }; });
 
-  const lamps: Lamp[] = [[4, 4], [13, 4], [4, 11], [13, 11]].map(([x, y], id) => {
-    solid(x, y, 1, 1);
-    return { id, x, y, kind: 'oil', district: 'street', oil: 0, lit: false, everLit: false, kindled: 0, gust: 0 };
-  });
+  // фонарей на площади нет — днём они не нужны, а ночью их сюда так и не поставили
+  const lamps: Lamp[] = [];
 
   const flowers: Flower[] = [3, 4, 6, 7].map((y) => ({ x: 3, y, stage: 3, grow: 0 }));
 
@@ -43,12 +41,22 @@ export function makePlaza(): Plaza {
   ];
   for (const p of props) solid(p.x, p.y, p.w, p.h);
 
-  // деревья по краю
+  // деревья: сплошь по краю и на пустой траве внутри; проходы жителей к дверям оставляем свободными
+  const runs: [number, number, number, number][] = [
+    [12.6, 4.6, 11, 3.2], [4.4, 5.6, 2, 7.2], [4.5, 11.5, 2, 11.2], [12.4, 9.4, 15, 6.2], [6.6, 3.8, 6, 3.2], [8.6, 10.8, 15, 11.2],
+  ];
+  const nearRun = (x: number, y: number) => runs.some(([ax, ay, bx, by]) => {
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+    return Math.hypot(ax + dx * t - x, ay + dy * t - y) < 1.3;
+  });
+  const besideStone = (x: number, y: number) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => ground[idx(Math.min(w - 1, Math.max(0, x + i)), Math.min(h - 1, Math.max(0, y + j)))] !== GRASS);
   const trees: Tree[] = [];
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
+      if (block[idx(x, y)] || ground[idx(x, y)] !== GRASS) continue;
       const edge = Math.min(x, y, w - 1 - x, h - 1 - y);
-      if (edge > 0 || block[idx(x, y)] || ground[idx(x, y)] !== GRASS) continue;
+      if (edge > 0 && (nearRun(x + 0.5, y + 0.5) || besideStone(x, y) || (x * 7 + y * 13) % 5 === 0)) continue;
       trees.push({ x, y, v: ((x * 31 + y * 17) % 10) / 10 });
       solid(x, y, 1, 1);
     }
