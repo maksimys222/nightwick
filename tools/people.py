@@ -84,12 +84,13 @@ def person(cfg, frame=0, walk=False):
     G.row(u(14), 8, 'KCcccccdK')
     head = cfg.get('head', default_head)
     head(G, u)
+    if cfg.get('detail'): cfg['detail'](G, u, frame if walk else 0, bob)
     return G
 
 
 def default_head(G, u):
     G.row(u(8), 10, 'KKKKK')
-    G.row(u(9), 9, 'KaAssssK')
+    G.row(u(9), 9, 'KaAsassK')   # бровь над глазом
     G.row(u(10), 9, 'KaSssesK')
     G.row(u(11), 9, 'KaSsnsssK')
     G.row(u(12), 9, 'KaaSssSK')
@@ -209,20 +210,80 @@ def oilcan(G, u, f):  # помощник: бидон с маслом
     G.row(u(26), 14 + sw, 'KKKKK')
 
 
+
+# ---------- детали каждого жителя (поверх всего) ----------
+
+def d_agata(G, u, f, bob):
+    # вязаная шаль на плечах с бахромой
+    G.row(u(13), 8, 'KzzzzzzzK')
+    G.row(u(14), 7, 'KzZzzZzzZK')
+    G.row(u(15), 7, 'KzzZzzZzzK')
+    G.row(u(16), 8, 'KzzzzzzK')
+    for x in (8, 10, 12, 14): G.set(x, u(17), 'Z')
+    # платок в горошек
+    for x, y in ((10, 7), (12, 8), (14, 7), (9, 9), (10, 12), (9, 11)):
+        if G.get(x, u(y)) == 'k': G.set(x, u(y), 'w')
+    # круглые очки
+    G.set(13, u(10), 'i'); G.set(15, u(10), 'i'); G.set(14, u(9), 'i')
+    # кармашек и оборка фартука
+    G.row(u(23), 10, 'VVv')
+    G.row(u(27), 10, 'wvwv')
+
+
+def d_timofey(G, u, f, bob):
+    # закатанные рукава: сильные руки
+    G.row(u(17), 15, 'CdK')
+    for y in (18, 19, 20): G.row(u(y), 15, 'sSK')
+    # лямки фартука, карман с клещами, сажа
+    G.set(11, u(15), 'V'); G.set(13, u(15), 'V')
+    G.row(u(22), 11, 'VV'); G.set(11, u(21), 'm'); G.set(12, u(20), 'M')
+    G.set(10, u(18), 'M'); G.set(12, u(24), 'M'); G.set(14, u(10), 'e')
+    # густые брови и борода с прядями
+    G.row(u(9), 13, 'bb')
+    G.set(12, u(12), 'B'); G.set(14, u(13), 'B'); G.set(11, u(13), 'B')
+
+
+def d_nika(G, u, f, bob):
+    G.row(u(13), 10, 'wwwww')                      # белый воротничок
+    G.set(15, u(11), 'n')                          # ещё веснушка
+    G.set(10, u(16), 'x'); G.set(9, 24 + bob, 'x'); G.set(12, 25 + bob, 'r')  # пятна краски
+    for x in range(24):                            # полосатые гольфы
+        if G.get(x, 27) in 'pP': G.set(x, 27, 'w')
+        if G.get(x, 28) in 'pP': G.set(x, 28, 'r')
+    # палитра с красками в руке
+    G.row(u(20), 13, 'KhhhhK')
+    G.row(u(21), 13, 'KhxrgK')
+    G.row(u(22), 14, 'KKKK')
+
+
+def d_seva(G, u, f, bob):
+    G.set(14, u(12), 'a'); G.set(15, u(12), 'a')  # усы
+    for y in (17, 19): G.set(11, u(y), 'T')       # второй ряд пуговиц
+    G.row(u(15), 9, 'TT')                          # погончик
+    G.row(u(18), 15, 'QdK')                        # обшлаг рукава
+
+
+def d_mila(G, u, f, bob):
+    for x, y, ch in ((9, 13, 'a'), (8, 14, 'A'), (8, 15, 'a'), (8, 16, 'A'), (8, 17, 'R')): G.set(x, u(y), ch)  # коса
+    G.set(15, u(11), 'n')                          # румянец
+    for y in (19, 20): G.row(u(y), 15, 'sSK')      # закатанные рукава
+    G.set(11, u(19), 'W'); G.set(12, u(24), 'W'); G.set(10, u(26), 'W')  # мука на фартуке
+
+
 PEOPLE = {
-    'agata': dict(head=kerchief, dress=True, apron=True, item=sunflower,
+    'agata': dict(head=kerchief, dress=True, apron=True, item=sunflower, detail=d_agata,
                   pal={'c': 0x8a4a7a, 'C': 0xb06a9e, 'd': 0x5e2e54, 'k': 0xd04a3a, 'v': 0xece4d4, 'V': 0xbab2a2,
-                       'i': 0x8a8a9a, 'collar': 0}),
-    'timofey': dict(head=bald_beard, apron=True, item=hammer, collar='KsssssK',
+                       'i': 0x9a9aa8, 'z': 0x4a7a5a, 'Z': 0x2e5a3e}),
+    'timofey': dict(head=bald_beard, apron=True, item=hammer, collar='KsssssK', detail=d_timofey,
                     pal={'c': 0xb05a3a, 'C': 0xd07a52, 'd': 0x7a3a24, 'v': 0x6a4422, 'V': 0x452a14,
                          'b': 0x6a3a1a, 'B': 0x8a5228}),
-    'nika': dict(head=pigtails, kid=True, dress=True, item=brush,
+    'nika': dict(head=pigtails, kid=True, dress=True, item=brush, detail=d_nika,
                  pal={'c': 0xd07a3a, 'C': 0xf0a060, 'd': 0x9a4a1e, 'a': 0x8a4a1a, 'A': 0xb06a2a, 'r': 0x3a9ad0,
                       'x': 0xff8a3a}),
-    'seva': dict(head=cap, buttons=True, belt=True, item=letter,
+    'seva': dict(head=cap, buttons=True, belt=True, item=letter, detail=d_seva,
                  pal={'c': 0x3a5a8a, 'C': 0x5a7ab0, 'd': 0x26406a, 'q': 0x2a4a7a, 'Q': 0x4a6aa0,
                       'a': 0x4a2a14, 'A': 0x6a3e1e}),
-    'mila': dict(head=chef, dress=True, apron=True, item=loaf,
+    'mila': dict(head=chef, dress=True, apron=True, item=loaf, detail=d_mila,
                  pal={'c': 0xd88a8a, 'C': 0xf0aaa8, 'd': 0xa85a5e, 'v': 0xf4f0e8, 'V': 0xd0c8bc,
                       'a': 0xa0602a, 'A': 0xc8803a, 'j': 0xd8964a, 'J': 0xa8682a}),
     'helper': dict(head=flatcap, belt=True, item=oilcan,
@@ -269,6 +330,12 @@ def owl(frame=0, walk=False):
                 G.set(x, y, 'V' if (x + y) % 3 == 0 and y % 2 == 0 else 'v')
     for y in range(cy - 1, cy + 8):
         G.set(cx - 6, y, 'D' if y % 2 else 'd'); G.set(cx + 5, y, 'D' if y % 2 == 0 else 'd')
+    # перья чешуйками на спине и боках, светлые кончики крыльев
+    for y in range(cy - 10, cy + 10):
+        for x in range(24):
+            if G.get(x, y) in ('c', 'C', 'd') and y % 2 == 0 and (x + (y // 2) % 2 * 2) % 4 == 0:
+                G.set(x, y, 'D' if G.get(x, y) == 'd' else 'V')
+    G.set(cx - 6, cy + 8, 'C'); G.set(cx + 5, cy + 8, 'C')
     # лапки
     feet_y = 30
     if walk and frame % 2 == 1:

@@ -208,7 +208,7 @@ export class Renderer {
       this.floatLayer.addChild(c);
       this.sparkGs.push({ c, g, pic });
     }
-    const wings = frames('spark', 12);
+    const wings = frames('spark', 16);
     this.sparkGs.forEach(({ c, g, pic }, i) => {
       const s = sp[i];
       c.visible = !!s && s.alpha > 0.01;
