@@ -11,6 +11,7 @@ import { toScreen, isoEllipse } from './iso';
 import { st, world, type Light, type Scene } from './game';
 import { makePlaza } from './plaza';
 import { makeLightTexture, makeHaloTexture, drawSpark } from './draw';
+import { frames } from './sprites';
 import { NightView } from './nightView';
 import { RoomView } from './roomView';
 
@@ -72,7 +73,7 @@ export class Renderer {
   private lastAlpha = -1;
   /** Слой поверх тьмы в экранных пикселях: то, что должно двигаться плавно (Искра). */
   private floatLayer = new Container();
-  private sparkGs: Graphics[] = [];
+  private sparkGs: { c: Container; g: Graphics; pic: Sprite }[] = [];
   private haloLayer = new Container();
   private moths = new Graphics();
 
@@ -200,15 +201,25 @@ export class Renderer {
     this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
     this.drawHalos(v.halos(), t);
     const sp = v.sparks();
-    while (this.sparkGs.length < sp.length) this.sparkGs.push(this.floatLayer.addChild(new Graphics()));
-    this.sparkGs.forEach((g, i) => {
+    while (this.sparkGs.length < sp.length) {
+      const c = new Container(), g = new Graphics(), pic = new Sprite();
+      pic.anchor.set(0.5);
+      c.addChild(g, pic);
+      this.floatLayer.addChild(c);
+      this.sparkGs.push({ c, g, pic });
+    }
+    const wings = frames('spark', 12);
+    this.sparkGs.forEach(({ c, g, pic }, i) => {
       const s = sp[i];
-      g.visible = !!s && s.alpha > 0.01;
-      if (!g.visible) return;
-      drawSpark(g.clear(), t);
+      c.visible = !!s && s.alpha > 0.01;
+      if (!c.visible) return;
+      g.clear();
+      pic.visible = !!wings;
+      if (wings) pic.texture = wings[Math.floor(t * 16) % wings.length];
+      else drawSpark(g, t);
       const p = toScreen(s.x, s.y);
-      g.position.set(p.x, p.y - 14);
-      g.alpha = s.alpha;
+      c.position.set(p.x, p.y - 14);
+      c.alpha = s.alpha;
     });
 
     const r = this.app.renderer;

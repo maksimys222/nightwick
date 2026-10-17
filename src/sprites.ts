@@ -7,6 +7,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 const urls = {
   ...(import.meta.glob('../art/examples/lamps/*_{on,off}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/examples/hero/hero_{idle,walk,light}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('../art/examples/story/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/examples/people/*_{idle,walk}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 };

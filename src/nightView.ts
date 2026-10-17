@@ -269,12 +269,9 @@ export class NightView implements View {
       if (a.kind === 'hero') f.hero(a.face, a.anim, a.moving, true);
       else if (a.kind !== 'villain' && a.kind !== 'sleeper' && a.kind !== 'smoke') {
         f.person(a.id, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat);
-      } else {
-        const g = f.graphics();
-        if (a.kind === 'villain') drawVillain(g, a.face, st.time, a.cast);
-        else if (a.kind === 'sleeper') drawSleeper(g);
-        else if (a.kind === 'smoke') drawSmoke(g, a.anim);
-      }
+      } else if (a.kind === 'villain') f.villain(a.face, st.time, !!a.cast);
+      else if (a.kind === 'sleeper') f.sleeper();
+      else drawSmoke(f.graphics(), a.anim);
       f.alpha = a.alpha;
       const s = toScreen(a.x, a.y);
       f.position.set(Math.round(s.x), Math.round(s.y));

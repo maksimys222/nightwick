@@ -74,4 +74,4 @@ const step = (n = 1) => {
   }
   app.render();
 };
-Object.assign(window, { st, world, sim, step, renderer, ui, startNight, lampCap });
+Object.assign(window, { st, world, sim, step, renderer, ui, startNight, lampCap, playIntro });
