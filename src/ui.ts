@@ -2,7 +2,7 @@
 
 import {
   st, world, UPGRADES, cost, buyBlock, buy, currentAct, hint, lumenRate, nextLine, claim, skipCine, save, finishPress, startNight,
-  questVisible, questState, readyQuests, type UpId,
+  questVisible, questState, readyQuests, clickWorld, type UpId,
 } from './game';
 import { QUESTS, JOURNAL, residentById, type ResidentId } from './story';
 import { DISTRICT_NAMES } from './map';
@@ -41,6 +41,13 @@ export class UI {
       if (st.dialog.length && go) { nextLine(); e.preventDefault(); return; }
       if (st.modal?.kind === 'press' && go) { this.pressHit(); e.preventDefault(); return; }
       if (st.modal && (e.code === 'Escape' || e.code === 'KeyE')) this.closeModal();
+    });
+    // ЛКМ по спелому подсолнуху рядом — сорвать
+    addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || st.menu || st.dialog.length || st.modal) return;
+      if ((e.target as HTMLElement).closest('button, #modal, #starsky, #hud')) return;
+      const w = this.r.toWorld(e.clientX, e.clientY);
+      clickWorld(w.x, w.y);
     });
     // текст листается кликом в любом месте экрана
     addEventListener('pointerdown', (e) => {
@@ -317,7 +324,7 @@ export class UI {
       $('talk-who').textContent = line.who ?? '';
       $('talk-text').textContent = line.text;
       const p = this.r.toCss(speaker.x, speaker.y, speaker.kind === 'spark');
-      const up = speaker.kind === 'villain' ? 40 : speaker.kind === 'spark' ? 22 : speaker.kind === 'sleeper' ? 12 : 26;
+      const up = speaker.kind === 'villain' ? 54 : speaker.kind === 'spark' ? 26 : speaker.kind === 'sleeper' ? 16 : 36;
       // облачко не должно вылезать за край экрана
       const half = $('talk').offsetWidth / 2 + 8;
       const x = Math.min(innerWidth - half, Math.max(half, p.x));
@@ -327,6 +334,9 @@ export class UI {
       const tail = Math.max(-half + 22, Math.min(half - 22, p.x - x));
       $('talk').style.setProperty('--tail', `${Math.round(tail)}px`);
     }
+    document.body.classList.toggle('show-timer', line?.show === 'timer');
+    // подсказка управления внизу — только в первую ночь
+    $('keys').hidden = st.nights > 1;
     $('dialog').hidden = !line || !!speaker;
     if (line && !speaker) {
       $('dlg-who').textContent = line.who ?? '';
@@ -350,11 +360,12 @@ export class UI {
     }
 
     // таймер ночи
-    $('timer').hidden = !night;
+    $('timer').hidden = !night && !document.body.classList.contains('show-timer');
     if (night) {
       const k = st.lantern / st.lanternMax;
       ($('timer-fill') as HTMLElement).style.width = `${k * 100}%`;
-      $('timer').classList.toggle('low', st.lantern < 10);
+      $('timer').classList.toggle('low', st.lantern < 10 && !st.inLampLight);
+      $('timer').classList.toggle('rest', st.inLampLight);
       $('timer-text').textContent = clock(st.lantern);
     }
     $('goal').textContent = hint();
@@ -367,7 +378,7 @@ export class UI {
       pr.hidden = false;
       pr.className = a.ok ? '' : 'no';
       pr.innerHTML = a.ok ? `<b>E</b> ${a.label}` : a.why ?? '';
-      pr.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 30 * this.r.scale)}px) translate(-50%, -100%)`;
+      pr.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y - 38 * this.r.scale)}px) translate(-50%, -100%)`;
     } else pr.hidden = true;
     const holding = st.hold.key !== '' && st.hold.time > 0.2;
     $('holdbar').classList.toggle('on', holding);

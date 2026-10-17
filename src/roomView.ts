@@ -22,7 +22,7 @@ export class RoomView implements View {
   readonly glowTint = 0xff9040;
   private objects = new Container({ sortableChildren: true });
   private board = new Graphics();
-  private boardKey = '';
+  private boardKey: string | null = null;
   private furniture: { s: Station; g: Graphics; npc: Figure | null }[] = [];
   private fire = new Graphics();
   private player = new Figure();

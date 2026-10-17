@@ -94,7 +94,7 @@ export const st = {
   quests: {} as Partial<Record<string, 'done' | 'claimed'>>,
   nights: 0,
   notesRead: 0,
-  seen: { intro: false, firstReturn: false, ending: false },
+  seen: { intro: false, firstReturn: false, ending: false, skyGuide: false },
   /** Какие подсказки Искры уже были. */
   tips: {} as Record<string, boolean>,
   /** Сколько ночей подряд никого не нашли (для подсказки-стрелки). */
@@ -113,6 +113,8 @@ export const st = {
   /** Секунды до того, как погаснет ручной фонарь. */
   lantern: 0,
   lanternMax: 1,
+  /** Стоит в свете уличного фонаря — ручной фонарь не тратится. */
+  inLampLight: false,
   oil: 0,
   seeds: 0,
   /** Свет, собранный за ночь: он в фонаре, пока не донесёшь до дома. */
@@ -294,6 +296,12 @@ export function lights(): Light[] {
   if (st.cine) {
     const ls: Light[] = st.cine.actors.filter((a) => a.kind === 'spark' && a.alpha > 0).map((a) => ({ x: a.x, y: a.y, r: 1.6, id: -2 }));
     if (st.cine.homeGlow && world.home) { const d = homeDoor(world.home); ls.push({ x: d.x, y: d.y - 0.6, r: 3, id: -3 }); }
+    // Искра показывает на уличный фонарь — его чуть видно в темноте
+    if (st.dialog[0]?.show === 'lamp') {
+      const p = st.player;
+      const l = world.lamps.filter((x) => x.kind === 'oil').sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+      if (l) ls.push({ x: l.x + 0.5, y: l.y + 0.5, r: 1.6, id: -4 });
+    }
     return ls;
   }
   // ручной фонарь к концу смены тускнеет
@@ -904,7 +912,9 @@ function updateNight(dt: number) {
   // ручной фонарь — таймер смены
   // «Чай у ворота»: у маслобойни фонарь тратится вдвое медленнее
   const atPress = has('tea') && world.presses.some((pr) => Math.hypot(pr.x + 0.5 - st.player.x, pr.y + 0.5 - st.player.y) < 3);
-  st.lantern = Math.max(0, st.lantern - dt * (atPress ? 0.5 : 1));
+  // в свете горящего уличного фонаря свой ручной фонарь не тратится — можно постоять и передохнуть
+  st.inLampLight = inLampLight();
+  if (!st.inLampLight) st.lantern = Math.max(0, st.lantern - dt * (atPress ? 0.5 : 1));
   if (st.lantern <= 0 && has('spare') && !st.spareUsed) {
     st.spareUsed = true;
     addTime(8);
@@ -987,6 +997,23 @@ function updateNight(dt: number) {
   if (world.houses.some((h) => !st.met.includes(h.rid) && Math.hypot(h.x + 1 - p.x, h.y + 1 - p.y) < 4)) tip('house');
 
   checkQuests();
+}
+
+/** Стоит ли фонарщик в свете горящего уличного фонаря (не маяка). */
+export function inLampLight() {
+  const p = st.player;
+  return world.lamps.some((l) => l.kind !== 'beacon' && burning(l) && Math.hypot(l.x + 0.5 - p.x, l.y + 0.5 - p.y) < lampRadius(l) * 0.7);
+}
+
+/** Клик мышью по клетке мира ночью: спелый подсолнух рядом — сорвать. true — клик что-то сделал. */
+export function clickWorld(x: number, y: number) {
+  if (st.scene !== 'night' || st.nightOver || paused() || st.cine) return false;
+  const p = st.player;
+  const f = world.flowers.find((f) => f.stage === 3 && Math.hypot(f.x + 0.5 - x, f.y + 0.5 - y) < 0.8);
+  if (!f || Math.hypot(f.x + 0.5 - p.x, f.y + 0.5 - p.y) > 2.5) return false;
+  harvest(f);
+  sfx.pick();
+  return true;
 }
 
 /** Пауза, пока открыт диалог или окно. */

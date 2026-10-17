@@ -158,6 +158,7 @@ export class SkyView {
         star.classList.add('flash');
         setTimeout(() => star.classList.remove('flash'), 600);
         this.refresh();
+        this.guide();
         this.showTip(e.clientX, e.clientY);
       }
     });
@@ -178,11 +179,30 @@ export class SkyView {
   open() {
     if (!this.built) this.build();
     this.root.hidden = false;
-    // всё небо (радиус ~620) — по размеру экрана
+    // видимая часть неба (горящие звёзды и их соседи) — по размеру экрана
     const r = this.svg.getBoundingClientRect();
-    this.view = { x: 0, y: 20, k: Math.min(1.4, Math.min(r.width, r.height - 120) / 1080) };
+    const seen = STARS.filter((x) => starLit(x.id) || x.links.some(starLit));
+    const reach = Math.max(140, ...seen.map((x) => Math.hypot(x.x, x.y))) + 70;
+    this.view = { x: 0, y: 20, k: Math.min(2.6, Math.min(r.width, r.height - 120) / (reach * 2)) };
     this.applyView();
     this.refresh();
+    this.guide();
+  }
+
+  /** Первый заход: Искра подсказывает, с чего начать. */
+  private guide() {
+    let box = this.root.querySelector<HTMLElement>('.sky-guide');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'sky-guide';
+      this.root.appendChild(box);
+    }
+    const first = st.stars.length <= 1;
+    box.hidden = !first && !!st.seen.skyGuide;
+    box.innerHTML = first
+      ? '<b>Искра:</b> Это я — в серединке! Вокруг меня мерцают звёзды. Кликни по любой — и она загорится. Начни с той, что ярче мерцает!'
+      : '<b>Искра:</b> Получилось! Теперь видно соседние звёзды. Наведи на звезду — узнаешь, что она даёт. Дальше выбирай сам.';
+    if (!first) st.seen.skyGuide = true;
   }
 
   close() {
@@ -207,10 +227,12 @@ export class SkyView {
       g.classList.toggle('locked', !branchOpen(s.branch));
       g.classList.toggle('near', !lit && s.links.some(starLit) && branchOpen(s.branch));
       g.classList.toggle('can', !lit && block === null);
+      // дальше соседей не видно: небо открывается по мере того, как зажигаешь звёзды
+      g.classList.toggle('unknown', !lit && !s.links.some(starLit));
     }
     for (const { a, b, e } of this.lineEls) {
       const la = starLit(a), lb = starLit(b);
-      e.setAttribute('class', la && lb ? 'on' : la || lb ? 'half' : '');
+      e.setAttribute('class', la && lb ? 'on' : la || lb ? 'half' : 'unknown');
       const sa = starById(a), sb = starById(b);
       const br = sa.branch !== 'core' ? sa.branch : sb.branch;
       e.style.setProperty('--c', hex(CONSTELLATIONS[br].color));
@@ -226,6 +248,8 @@ export class SkyView {
         : `«${c.name}» — ${residentById(b as ResidentId).name}`;
       t.style.setProperty('--c', hex(c.color));
       t.classList.toggle('closed', !open);
+      // подпись созвездия — только когда до него уже дотянулся свет
+      t.classList.toggle('unknown', !STARS.some((s) => s.branch === b && (starLit(s.id) || s.links.some(starLit))));
       t.classList.toggle('done', done.includes(b));
     }
     this.root.querySelector('.sky-lumens')!.textContent = `Свет: ${fmt(st.lumens)}`;

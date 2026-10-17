@@ -73,15 +73,16 @@ export class Renderer {
   private lastAlpha = -1;
   /** Слой поверх тьмы в экранных пикселях: то, что должно двигаться плавно (Искра). */
   private floatLayer = new Container();
-  private sparkGs: { c: Container; g: Graphics; pic: Sprite }[] = [];
+  private sparkGs: { c: Container; g: Graphics; pic: Sprite; lx: number; face: number }[] = [];
   private haloLayer = new Container();
+  private pointer = new Graphics();
   private moths = new Graphics();
 
   constructor(private app: Application) {
     this.worldRoot.addChild(this.cam);
     this.darkRoot.addChild(this.darkFill, this.darkCam);
     app.stage.addChild(this.worldSprite, this.darkSprite, this.floatLayer);
-    this.floatLayer.addChild(this.haloLayer, this.moths);
+    this.floatLayer.addChild(this.haloLayer, this.moths, this.pointer);
     this.resize();
   }
 
@@ -126,6 +127,21 @@ export class Renderer {
     return { x: (r(s.x) + this.off.x) * this.scale, y: (r(s.y) + this.off.y) * this.scale };
   }
 
+  /** Ближайший к фонарщику уличный фонарь, если Искра сейчас про него говорит. */
+  private shownLamp() {
+    if (st.dialog[0]?.show !== 'lamp' || st.scene !== 'night') return null;
+    const p = st.player;
+    return world.lamps.filter((l) => l.kind === 'oil').sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0] ?? null;
+  }
+
+  /** Клетка мира под точкой экрана (CSS-пиксели) — обратное к toCss. */
+  toWorld(cx: number, cy: number) {
+    const sx = cx / this.scale - this.off.x, sy = cy / this.scale - this.off.y;
+    // toScreen: x = (tx - ty) * TW/2, y = (tx + ty) * TH/2
+    const a = sx / 16, b = sy / 8;
+    return { x: (a + b) / 2, y: (b - a) / 2 };
+  }
+
   frame(dt: number) {
     if (this.current !== st.scene) this.switchView();
     const v = this.view;
@@ -144,6 +160,9 @@ export class Renderer {
         p.x = Math.min(s.x + mx, Math.max(s.x - mx, p.x));
         p.y = Math.min(s.y + top, Math.max(s.y - bottom, p.y));
       }
+      // Искра показывает на фонарь — камера чуть сдвигается к нему
+      const shown = this.shownLamp();
+      if (shown) { const q = toScreen(shown.x + 0.5, shown.y + 0.5); p.x = (p.x + q.x) / 2; p.y = (p.y + q.y) / 2; }
       const k = 1 - Math.exp(-dt * 3);
       this.camPos.x += (p.x - this.camPos.x) * k;
       this.camPos.y += (p.y - this.camPos.y) * k;
@@ -200,16 +219,27 @@ export class Renderer {
     this.floatLayer.scale.set(this.scale);
     this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
     this.drawHalos(v.halos(), t);
+    // прыгающая стрелка над фонарём, о котором говорит Искра
+    const g = this.pointer.clear();
+    const shown = this.shownLamp();
+    if (shown) {
+      const q = toScreen(shown.x + 0.5, shown.y + 0.5);
+      const y = Math.round(q.y) - 46 - Math.abs(Math.sin(t * 4)) * 5, x = Math.round(q.x);
+      g.poly([x - 5, y - 6, x + 5, y - 6, x, y]).fill(0xffd36b);
+      g.poly([x - 3, y - 5, x + 3, y - 5, x, y - 1.5]).fill(0xfff4c8);
+      g.rect(x - 1.5, y - 12, 3, 6).fill(0xffd36b);
+    }
     const sp = v.sparks();
     while (this.sparkGs.length < sp.length) {
       const c = new Container(), g = new Graphics(), pic = new Sprite();
       pic.anchor.set(0.5);
       c.addChild(g, pic);
       this.floatLayer.addChild(c);
-      this.sparkGs.push({ c, g, pic });
+      this.sparkGs.push({ c, g, pic, lx: 0, face: 1 });
     }
     const wings = frames('spark', 16);
-    this.sparkGs.forEach(({ c, g, pic }, i) => {
+    this.sparkGs.forEach((sg, i) => {
+      const { c, g, pic } = sg;
       const s = sp[i];
       c.visible = !!s && s.alpha > 0.01;
       if (!c.visible) return;
@@ -218,6 +248,11 @@ export class Renderer {
       if (wings) pic.texture = wings[Math.floor(t * 16) % wings.length];
       else drawSpark(g, t);
       const p = toScreen(s.x, s.y);
+      // летит влево — смотрит влево (с запасом, чтобы не дёргалась на месте)
+      const dx = p.x - sg.lx;
+      if (Math.abs(dx) > 0.15) sg.face = dx < 0 ? -1 : 1;
+      sg.lx = p.x;
+      pic.scale.x = sg.face;
       c.position.set(p.x, p.y - 14);
       c.alpha = s.alpha;
     });

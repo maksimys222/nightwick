@@ -23,6 +23,9 @@ html, body {
 body[data-scene='room'] .night-only,
 body[data-scene='night'] .room-only { display: none !important; }
 body.cine #hud, body.cine #top, body.cine #keys, body.cine #prompt { display: none !important; }
+body.cine.show-timer #top { display: flex !important; }
+body.show-timer #timer { animation: show-me 0.7s ease-in-out infinite alternate; }
+@keyframes show-me { from { box-shadow: 0 0 0 2px #ffd36b, 0 0 12px #ffb020; } to { box-shadow: 0 0 0 4px #fff0b0, 0 0 28px #ffd36b; } }
 body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, body.in-menu #bubble { display: none !important; }
 
 #screen canvas { display: block; image-rendering: pixelated; }
@@ -63,6 +66,8 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #timer-fill { height: 100%; background: linear-gradient(#fff4a0, #f0b040); transition: width 0.2s linear; }
 #timer-text { font-size: 18px; color: var(--warm); min-width: 44px; text-align: right; }
 #timer.low #timer-fill { background: #e05040; }
+#timer.rest #timer-fill { background: linear-gradient(#e8fff0, #8ad8a0); }
+#timer.rest .t-lbl::after { content: ' · отдых у фонаря'; color: #8ad8a0; }
 #timer.low #timer-text { color: var(--bad); animation: pulse 0.5s infinite alternate; }
 #goal { padding: 8px 18px; font-size: 18px; text-align: center; width: 100%; }
 
@@ -310,6 +315,11 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 @keyframes star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 @keyframes star-flash { from { opacity: 0.9; transform: scale(1.6); } to { opacity: 0.22; transform: scale(1); } }
 
+.star.unknown, .sky-svg line.unknown, .sky-label.unknown { display: none; }
+.sky-guide { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); max-width: 520px; text-align: center;
+  background: rgba(40, 28, 10, 0.85); border: 2px solid #ffd36b; padding: 8px 14px; font-size: 15px; color: #fff4d8; pointer-events: none;
+  box-shadow: 0 0 18px rgba(255, 190, 70, 0.35); }
+.sky-guide b { color: #ffd36b; font-weight: 400; }
 .sky-label { fill: var(--c); font-size: 15px; text-anchor: middle; font-family: 'Pixelify Sans', monospace; opacity: 0.85; pointer-events: none; }
 .sky-label.closed { fill: #6a6890; opacity: 0.7; }
 .sky-label.done { opacity: 1; font-size: 17px; }
