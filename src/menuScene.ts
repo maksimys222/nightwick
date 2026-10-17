@@ -42,7 +42,8 @@ export class MenuScene {
   }
 
   private fit() {
-    const w = innerWidth, h = innerHeight, dpr = Math.min(2, devicePixelRatio || 1);
+    // пиксельный вид: рисуем в 3 раза мельче и растягиваем без сглаживания (как сама игра)
+    const w = innerWidth, h = innerHeight, dpr = 1 / 3;
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.scale = Math.max(w / VW, h / VH) * dpr;

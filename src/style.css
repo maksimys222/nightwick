@@ -233,7 +233,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
   /* сцена: лесная поляна в рамке из лиан, слева солнце, справа дупло */
   background: #0a140e;
 }
-.menu-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.menu-scene { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 #menu.pause .menu-scene { display: none; }
 #menu.pause { image-rendering: auto; }
 /* светлячки над поляной */
@@ -262,27 +262,40 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 #menu .menu-box { padding: 18px 22px 22px; }
 #menu:not(.pause) .menu-box {
-  width: min(420px, 90vw); padding: 36px 46px 40px; image-rendering: auto;
-  border: none; border-image: none;
-  background: var(--wood) center / 100% 100% no-repeat;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(0, 0, 0, 0.6);
-  border-radius: 4px;
+  /* пиксельная доска: рама из тёмного дерева с гвоздиками (×3), внутри — табличка и ровные доски-пункты */
+  width: min(432px, 92vw); padding: 0;
+  border: 30px solid transparent;
+  border-image: url('../art/examples/ui/frame_wood.png') 10 / 30px stretch;
+  background: url('../art/examples/ui/plate.png') 0 0 / 192px 96px repeat padding-box;
+  image-rendering: pixelated;
+  box-shadow: 0 18px 0 rgba(0, 0, 0, 0.35);
 }
-.menu-sep { height: 2px; margin: 12px 10px 16px; background: linear-gradient(90deg, transparent, #c8963e, transparent); }
+#menu:not(.pause) #logo { margin-top: 18px; }
+#menu:not(.pause) .menu-sub { margin: 4px 0 0; }
+.menu-sep { height: 6px; margin: 14px 24px 18px; background: linear-gradient(#c8963e 0 3px, #2a1608 3px 6px); }
 .menu-sep.top { display: none; }
 #menu.pause .menu-sep { display: none; }
 #menu:not(.pause) #logo { width: 300px; filter: drop-shadow(0 4px 0 #2a1408) drop-shadow(0 0 24px rgba(255, 170, 50, 0.6)); }
 #menu:not(.pause) .menu-sub { color: #fff4d8; text-shadow: 0 2px 0 #000, 0 0 8px #000; font-size: 20px; }
-#menu:not(.pause) .menu-list { gap: 4px; padding: 0; }
-/* пункты меню на доске — просто надписи; при наведении загораются тёплым светом и огоньком */
-#menu:not(.pause) .menu-list button {
-  border: none !important; border-image: none !important; background: none !important;
-  color: #e8dcc0; font-size: 26px; padding: 6px 0; text-shadow: 0 2px 0 #000;
+#menu:not(.pause) .menu-list { gap: 0; padding: 0; }
+#menu:not(.pause) .menu-list > button, #menu:not(.pause) .menu-list > .vol {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  height: 48px; margin: 0; padding: 0 0 3px;
+  border: none !important; border-image: none !important;
+  background: url('../art/examples/ui/plank.png') 0 0 / 192px 48px repeat-x !important;
+  image-rendering: pixelated;
+  color: #f0e4c8; font-size: 24px; line-height: 1; text-shadow: 0 3px 0 #140a04;
 }
-#menu:not(.pause) .menu-list button::before { content: '✦ '; visibility: hidden; }
-#menu:not(.pause) .menu-list button::after { content: ' ✦'; visibility: hidden; }
-#menu:not(.pause) .menu-list button:hover { color: #ffd36b; transform: none; text-shadow: 0 0 12px rgba(255, 190, 70, 0.8), 0 2px 0 #000; }
-#menu:not(.pause) .menu-list button:hover::before, #menu:not(.pause) .menu-list button:hover::after { color: #ffd36b; visibility: visible; }
+#menu:not(.pause) .menu-list > button:hover {
+  background-image: url('../art/examples/ui/plank_hover.png') !important;
+  color: #ffd36b; transform: none;
+}
+#menu:not(.pause) .menu-list > button::before { content: '▸'; visibility: hidden; color: #ffd36b; }
+#menu:not(.pause) .menu-list > button::after { content: '◂'; visibility: hidden; color: #ffd36b; }
+#menu:not(.pause) .menu-list > button:hover::before, #menu:not(.pause) .menu-list > button:hover::after { visibility: visible; }
+#menu:not(.pause) .menu-list > .vol { font-size: 19px; }
+#menu:not(.pause) .vol .opt { background: #2a1608; border-color: #8a5a32; }
+#menu:not(.pause) .menu-ask, #menu:not(.pause) .credits { padding: 10px 24px; }
 .menu-list button { font-size: 24px; padding: 10px 0; text-shadow: 0 2px 0 #000; transition: transform 0.08s; }
 .menu-list button:hover { transform: translateY(-2px); }
 .menu-list button:active { transform: translateY(1px); }
@@ -418,3 +431,4 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
   .sky-sub, .sky-sum { display: none; }
   .sky-top h2 { font-size: 20px; }
 }
+#menu input[type='range'] { accent-color: #e0a040; }

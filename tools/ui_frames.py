@@ -48,3 +48,46 @@ def wood(name, n=30):
 
 wood('frame_wood')
 print('wood ok')
+
+
+# ---------- пиксельные доски меню ----------
+import random as _r
+
+
+def plank(name, light=False, n_w=64, n_h=16, seed=3):
+    """Доска 64×16, повторяется по горизонтали: светлая кромка сверху, прожилки, тёмная щель снизу."""
+    R = _r.Random(seed)
+    base = (0x8a5a32, 0x7a4c2a, 0x6b4224) if light else (0x5e3a20, 0x4e301a, 0x402614)
+    grain = [R.randrange(n_w) for _ in range(9)]
+    def get(x, y):
+        if y == n_h - 1: return (*rgb(0x140a04), 255)            # щель
+        if y == n_h - 2: return (*rgb(base[2]), 255)
+        if y == 0: return (*rgb(0xb07a44 if light else 0x7a4c2a), 255)  # светлая кромка
+        c = base[0] if y < 5 else base[1]
+        # прожилки: горизонтальные штрихи, волной
+        for i, gx in enumerate(grain):
+            gy = 2 + (i * 5) % (n_h - 4)
+            if y == gy and (x - gx) % n_w < 10 + i % 4: c = base[2]
+        if (x * 7 + y * 3) % 29 == 0: c = base[2]
+        if light and y == 1: c = 0xa87040
+        return (*rgb(c), 255)
+    png(os.path.join(OUT, name + '.png'), n_w, n_h, get)
+
+
+def plate(name, w=64, h=32, seed=8):
+    """Табличка для шапки: сплошное тёмное дерево без щелей, повторяется во все стороны."""
+    R = _r.Random(seed)
+    streaks = [(R.randrange(w), R.randrange(h), 6 + R.randrange(12)) for _ in range(26)]
+    def get(x, y):
+        c = 0x4a2e18 if (y // 8) % 2 else 0x52341c
+        for sx, sy, ln in streaks:
+            if y == sy and 0 <= (x - sx) % w < ln: c = 0x3a2412
+        if (x * 13 + y * 5) % 37 == 0: c = 0x5e3c20
+        return (*rgb(c), 255)
+    png(os.path.join(OUT, name + '.png'), w, h, get)
+
+
+plank('plank')
+plank('plank_hover', light=True)
+plate('plate')
+print('planks ok')
