@@ -18,6 +18,8 @@
 | Жители, Филин, помощник | `art/examples/people/` | `tools/people.py` |
 | Искра, Гаситель, спящий фонарщик | `art/examples/story/` | `tools/story_chars.py` |
 | Грядка подсолнухов | `art/examples/flower_example.png` | — |
+| Значки ресурсов и логотип | `art/examples/ui/` | `tools/ui_art.py` |
+| Звёзды неба | пиксельные маски в `src/skyView.ts` | — |
 | Земля, деревья, дома, мебель, площадь | рисуются кодом в `src/draw.ts`, `src/nightView.ts` | — |
 
 **Чтобы заменить своим:** положи в `art/` файл **с тем же именем** (например, `art/agata_idle.png`) —

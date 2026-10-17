@@ -82,6 +82,9 @@ export class UI {
     $('menu').hidden = false;
     $('menu').classList.toggle('pause', mode === 'pause');
     $('menu-title').textContent = mode === 'pause' ? 'Пауза' : 'Фонарщик';
+    // в главном меню — пиксельный логотип, в паузе — просто надпись
+    $('logo').hidden = mode === 'pause';
+    $('menu-title').hidden = mode !== 'pause';
     $('menu-settings').hidden = true;
     const has = this.actions.hasGame();
     const items: [string, string][] = mode === 'pause'

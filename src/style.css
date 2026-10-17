@@ -40,12 +40,15 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 .res .lbl { color: var(--dim); min-width: 78px; }
 .res b { color: var(--warm); font-weight: 400; }
 .res small { color: var(--dim); font-size: 14px; }
-.ic { display: inline-block; width: 10px; height: 10px; align-self: center; }
-.ic.sun { background: #ffd23a; box-shadow: 0 0 6px #ffb020; }
-.ic.oil { background: #c8902a; }
-.ic.seed { background: #6b3e1a; border: 2px solid #ffd23a; }
-.ic.home { background: #b8483c; }
-.ic.moon { background: #c8c8e8; border-radius: 50%; }
+.ic {
+  display: inline-block; width: 16px; height: 16px; align-self: center;
+  background: center / 16px 16px no-repeat; image-rendering: pixelated;
+}
+.ic.sun { background-image: url('../art/examples/ui/icon_sun.png'); }
+.ic.oil { background-image: url('../art/examples/ui/icon_oil.png'); }
+.ic.seed { background-image: url('../art/examples/ui/icon_seed.png'); }
+.ic.home { background-image: url('../art/examples/ui/icon_home.png'); }
+.ic.moon { background-image: url('../art/examples/ui/icon_moon.png'); }
 .ready { color: #1a1430; background: var(--warm); padding: 2px 6px; font-size: 15px; animation: pulse 1s infinite alternate; }
 @keyframes pulse { to { opacity: 0.6; } }
 
@@ -210,6 +213,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 }
 #menu.pause { background: rgba(0, 0, 0, 0.6); }
 .menu-box { text-align: center; width: min(360px, 90vw); }
+#logo { width: 300px; max-width: 100%; image-rendering: pixelated; filter: drop-shadow(0 0 18px rgba(255, 170, 50, 0.45)); }
 #menu-title { font-size: 56px; font-weight: 400; color: var(--warm); margin: 0; text-shadow: 0 0 24px rgba(255, 180, 60, 0.6); }
 .menu-sub { color: var(--dim); font-size: 18px; margin: 4px 0 28px; }
 #menu.pause .menu-sub { display: none; }
@@ -222,7 +226,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 .vol { display: flex; align-items: center; gap: 12px; justify-content: center; font-size: 18px; color: var(--ink); margin-bottom: 8px; }
 
 /* «В фонаре» */
-.ic.carry { background: #fff0b0; border-radius: 50%; box-shadow: 0 0 6px #ffd36b; }
+.ic.carry { background-image: url('../art/examples/ui/icon_carry.png'); }
 #journal-new { color: #ff7ab8; }
 
 /* дневник: страницы как бумага */
@@ -275,26 +279,34 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 .sky-sum .k { color: #ffe9a8; }
 .sky-sum .more { color: var(--dim); }
 
-.sky-dust circle { fill: #6a6890; opacity: 0.35; }
+.sky-dust rect { fill: #6a6890; opacity: 0.35; shape-rendering: crispEdges; }
 .sky-svg line { stroke: #3a3660; stroke-width: 1.2; opacity: 0.5; }
 .sky-svg line.half { stroke: var(--c); opacity: 0.35; stroke-dasharray: 3 4; }
 .sky-svg line.on { stroke: var(--c); stroke-width: 2.2; opacity: 0.9; }
 
 .star { cursor: pointer; }
+.star .px { shape-rendering: crispEdges; }
+.star .hit { fill: transparent; }
 .star .halo { fill: var(--c); opacity: 0; }
-.star .body { fill: #1c1a38; stroke: #4a4670; stroke-width: 1.5; }
-.star.locked .body { fill: #121024; stroke: #2a2844; }
-.star.near .body { stroke: var(--c); stroke-dasharray: 2 2; }
-.star.can .body { stroke: var(--c); stroke-width: 2; stroke-dasharray: none; animation: star-pulse 1.4s ease-in-out infinite; }
+/* погасшая — тёмная; рядом с горящей — с оттенком созвездия; можно зажечь — пульсирует */
+.star .body { fill: #2a2850; }
+.star .shine, .star .core { fill: #fff8e0; opacity: 0; }
+.star.locked .body { fill: #17152c; }
+.star.near .body { fill: color-mix(in srgb, var(--c) 30%, #1c1a38); }
+.star.can .body { fill: color-mix(in srgb, var(--c) 55%, #1c1a38); animation: star-pulse 1.4s ease-in-out infinite; }
 .star.can .halo { opacity: 0.12; }
-.star.lit .body { fill: var(--c); stroke: #fff6d8; stroke-width: 1.5; }
+.star.lit .body { fill: var(--c); }
+.star.lit .shine { fill: color-mix(in srgb, var(--c) 35%, #ffffff); opacity: 1; }
+.star.lit .core { opacity: 1; animation: star-twinkle 3s ease-in-out infinite; animation-delay: var(--tw); }
 .star.lit .halo { opacity: 0.22; }
-.star.center .body { fill: #ffd27a; stroke: #fff6d8; }
-.star.center .core { fill: #fff; }
+.star.center .body { fill: #ffd27a; }
+.star.center .shine { fill: #fff0b0; opacity: 1; }
+.star.center .core { opacity: 1; }
 .star.center .halo { opacity: 0.35; }
-.star:hover .body { stroke: #fff; }
+.star:hover .body { fill: color-mix(in srgb, var(--c) 75%, #ffffff); }
 .star.flash .halo { animation: star-flash 0.6s ease-out; }
-@keyframes star-pulse { 50% { stroke-opacity: 0.35; } }
+@keyframes star-pulse { 50% { fill-opacity: 0.55; } }
+@keyframes star-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 @keyframes star-flash { from { opacity: 0.9; transform: scale(1.6); } to { opacity: 0.22; transform: scale(1); } }
 
 .sky-label { fill: var(--c); font-size: 15px; text-anchor: middle; font-family: 'Pixelify Sans', monospace; opacity: 0.85; pointer-events: none; }

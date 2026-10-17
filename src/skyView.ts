@@ -1,12 +1,35 @@
 // Экран «Звёздное небо» (открывается у телескопа). Обычный SVG поверх игры:
 // колёсико — приблизить, тянуть мышью — двигать, клик по звезде — зажечь.
-// Рисунок здесь — заглушки (кружки и линии); потом их заменит настоящий арт.
+// Звёзды — пиксельные (маски ниже), цвет — от созвездия.
 
 import { st, lightStar, starBlock, starCost, starLit, branchOpen, doneConstellations } from './game';
 import { STARS, FX, CONSTELLATIONS, CONSTELLATION_BONUS, starById, starName, type Star, type Branch } from './sky';
 import { residentById, type ResidentId } from './story';
 
 const NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Пиксельные звёзды: # — тело (цвет созвездия), + — светлая сердцевина, * — белое ядро.
+ * Обычная — четырёхлучевая искра, яркая — восьмилучевая, особая — гранёный кристалл, центр — солнышко.
+ */
+const MASKS: Record<'center' | 'key' | 'big' | 'small', string[]> = {
+  small: ['...#...', '...#...', '..#+#..', '##+*+##', '..#+#..', '...#...', '...#...'],
+  big: ['....#....', '....#....', '.#.#+#.#.', '..#+++#..', '##++*++##', '..#+++#..', '.#.#+#.#.', '....#....', '....#....'],
+  key: ['.....#.....', '....###....', '...##+##...', '..##+++##..', '.##++*++##.', '##++***++##',
+    '.##++*++##.', '..##+++##..', '...##+##...', '....###....', '.....#.....'],
+  center: ['......#......', '......#......', '..#..###..#..', '...#######...', '...##+++##...', '..##+++++##..',
+    '####++*++####', '..##+++++##..', '...##+++##...', '...#######...', '..#..###..#..', '......#......', '......#......'],
+};
+
+/** Путь SVG из квадратиков маски: только клетки с нужными символами. */
+function maskPath(mask: string[], chars: string, px: number) {
+  const n = mask.length, o = (n * px) / 2;
+  let d = '';
+  mask.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (chars.includes(ch)) d += `M${(x * px - o).toFixed(2)} ${(y * px - o).toFixed(2)}h${px}v${px}h${-px}z`;
+  }));
+  return d;
+}
 const R = { center: 15, key: 12, big: 9, small: 5.5 } as const;
 const hex = (c: number) => '#' + c.toString(16).padStart(6, '0');
 const fmt = (n: number) => (n < 1000 ? Math.floor(n).toString() : (n / 1000).toFixed(1) + 'K');
@@ -54,7 +77,8 @@ export class SkyView {
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 260; i++) {
-      bg.appendChild(el('circle', { cx: (rnd() - 0.5) * 1500, cy: (rnd() - 0.5) * 1500, r: rnd() < 0.85 ? 0.8 : 1.4 }));
+      const sz = rnd() < 0.85 ? 1.6 : 2.8;
+      bg.appendChild(el('rect', { x: (rnd() - 0.5) * 1500, y: (rnd() - 0.5) * 1500, width: sz, height: sz }));
     }
     this.world.appendChild(bg);
 
@@ -89,9 +113,12 @@ export class SkyView {
       const g = el('g', { class: `star ${s.size}`, transform: `translate(${s.x} ${s.y})` });
       g.dataset.id = s.id;
       g.appendChild(el('circle', { class: 'halo', r: R[s.size] * 2.2 }));
-      if (s.size === 'key') g.appendChild(el('rect', { class: 'body', x: -R.key, y: -R.key, width: R.key * 2, height: R.key * 2, transform: 'rotate(45)' }));
-      else g.appendChild(el('circle', { class: 'body', r: R[s.size] }));
-      if (s.size === 'center') g.appendChild(el('circle', { class: 'core', r: 6 }));
+      g.appendChild(el('circle', { class: 'hit', r: R[s.size] * 1.2 }));   // чтобы клик попадал между пикселями
+      const mask = MASKS[s.size], px = (R[s.size] * 2.4) / mask.length;
+      g.appendChild(el('path', { class: 'body px', d: maskPath(mask, '#+*', px) }));
+      g.appendChild(el('path', { class: 'shine px', d: maskPath(mask, '+*', px) }));
+      g.appendChild(el('path', { class: 'core px', d: maskPath(mask, '*', px) }));
+      g.style.setProperty('--tw', `${(s.x * 7 + s.y * 13) % 30 / 10}s`);  // звёзды мерцают вразнобой
       g.style.setProperty('--c', hex(CONSTELLATIONS[s.branch].color));
       stars.appendChild(g);
       this.starEls.set(s.id, g);
