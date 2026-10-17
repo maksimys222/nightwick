@@ -7,6 +7,7 @@ import { st, stationOpen, questVisible, questState, type Light } from './game';
 import { QUESTS, residentById, type ResidentId } from './story';
 import { hash, diamond, drawPerson, drawTelescope, drawPlanter, drawAnvil, drawMapTable, drawMailbag, drawPerch, drawOven, drawFireplace } from './draw';
 import type { View } from './render';
+import { Figure } from './figure';
 
 const WALL_H = 52;
 
@@ -23,7 +24,7 @@ export class RoomView implements View {
   private boardKey = '';
   private furniture: { s: Station; g: Graphics; npc: Graphics | null }[] = [];
   private fire = new Graphics();
-  private player = new Graphics();
+  private player = new Figure();
 
   constructor() {
     this.root.addChild(buildShell(), this.board, this.objects);
@@ -101,7 +102,7 @@ export class RoomView implements View {
 
     const pl = st.player;
     const p = toScreen(pl.x, pl.y);
-    drawPerson(this.player.clear(), pl.face, pl.anim, pl.moving, 0x2b3a67, true, false);
+    this.player.hero(pl.face, pl.anim, pl.moving, false);
     this.player.position.set(Math.round(p.x), Math.round(p.y));
     this.player.zIndex = (pl.x + pl.y) * 10 + 1;
   }

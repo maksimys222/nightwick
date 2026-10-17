@@ -1,11 +1,12 @@
 // Картинки художника из папки art/: всё, что там лежит, подгружается само.
 // Если картинки ещё нет — игра рисует заглушку кодом (draw.ts).
 
-import { Assets, Texture } from 'pixi.js';
+import { Assets, Rectangle, Texture } from 'pixi.js';
 
 // сначала образцы (art/examples/…), потом картинки художника — они заменяют образцы с тем же именем
 const urls = {
   ...(import.meta.glob('../art/examples/lamps/*_{on,off}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('../art/examples/hero/hero_{idle,walk}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 };
 const tex: Record<string, Texture> = {};
@@ -27,3 +28,22 @@ export async function loadArt() {
 
 /** Картинка по имени файла без .png (например, 'lamp_oil_on'), или undefined, если её ещё нет. */
 export const art = (name: string): Texture | undefined => tex[name];
+
+const strips: Record<string, Texture[]> = {};
+
+/** Лента кадров (кадры в ряд слева направо) → отдельные кадры шириной w. */
+export function frames(name: string, w: number): Texture[] | undefined {
+  if (strips[name]) return strips[name];
+  const t = tex[name];
+  if (!t) return undefined;
+  const n = Math.max(1, Math.floor(t.width / w));
+  strips[name] = Array.from({ length: n }, (_, i) => new Texture({ source: t.source, frame: new Rectangle(i * w, 0, w, t.height) }));
+  return strips[name];
+}
+
+/** Кадр фонарщика: стоит или идёт (4 кадра шага). */
+export function heroTex(moving: boolean, anim: number): Texture | undefined {
+  const walk = frames('hero_walk', 16);
+  if (moving && walk) return walk[Math.floor(anim * 8) % walk.length];
+  return tex.hero_idle ?? walk?.[0];
+}

@@ -13,6 +13,7 @@ import {
 } from './draw';
 import type { View, Halo } from './render';
 import { art } from './sprites';
+import { Figure } from './figure';
 import { BIOMES, GROUND, ROOFS } from './palette';
 
 interface Dyn { key: string; keyOf: () => string; draw: () => void }
@@ -27,10 +28,10 @@ export class NightView implements View {
   private objects = new Container({ sortableChildren: true });
   private dyn: Dyn[] = [];
   private anim: (() => void)[] = [];
-  private player = new Graphics();
+  private player = new Figure();
   private helperGs: Graphics[] = [];
   private compass = new Graphics();
-  private actorGs: Graphics[] = [];
+  private actorGs: Figure[] = [];
   private fogVer = -1;
 
   /** main — настоящая улица (с туманом, игроком, домом); иначе — декорация для ролика. */
@@ -160,7 +161,7 @@ export class NightView implements View {
     const pl = st.player;
     const p = toScreen(pl.x, pl.y);
     if (playing) {
-      drawPerson(this.player.clear(), pl.face, pl.anim, pl.moving, 0x2b3a67, true, !st.nightOver);
+      this.player.hero(pl.face, pl.anim, pl.moving, !st.nightOver);
       this.player.position.set(Math.round(p.x), Math.round(p.y));
       this.player.zIndex = (pl.x + pl.y) * 10 + 1;
     }
@@ -242,24 +243,26 @@ export class NightView implements View {
   private drawActors() {
     const actors = st.cine?.actors ?? [];
     while (this.actorGs.length < actors.length) {
-      const g = new Graphics();
-      this.objects.addChild(g);
-      this.actorGs.push(g);
+      const f = new Figure();
+      this.objects.addChild(f);
+      this.actorGs.push(f);
     }
-    this.actorGs.forEach((g, i) => {
+    this.actorGs.forEach((f, i) => {
       const a = actors[i];
-      g.visible = !!a && a.alpha > 0.01 && a.kind !== 'spark';
-      if (!g.visible) return;
-      g.clear();
-      if (a.kind === 'villain') drawVillain(g, a.face, st.time, a.cast);
-      else if (a.kind === 'sleeper') drawSleeper(g);
-      else if (a.kind === 'smoke') drawSmoke(g, a.anim);
-      else if (a.kind === 'hero') drawPerson(g, a.face, a.anim, a.moving, 0x2b3a67, true, true);
-      else drawPerson(g, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat, false, false);
-      g.alpha = a.alpha;
+      f.visible = !!a && a.alpha > 0.01 && a.kind !== 'spark';
+      if (!f.visible) return;
+      if (a.kind === 'hero') f.hero(a.face, a.anim, a.moving, true);
+      else {
+        const g = f.graphics();
+        if (a.kind === 'villain') drawVillain(g, a.face, st.time, a.cast);
+        else if (a.kind === 'sleeper') drawSleeper(g);
+        else if (a.kind === 'smoke') drawSmoke(g, a.anim);
+        else drawPerson(g, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat, false, false);
+      }
+      f.alpha = a.alpha;
       const s = toScreen(a.x, a.y);
-      g.position.set(Math.round(s.x), Math.round(s.y));
-      g.zIndex = (a.x + a.y) * 10 + 1;
+      f.position.set(Math.round(s.x), Math.round(s.y));
+      f.zIndex = (a.x + a.y) * 10 + 1;
     });
   }
 
