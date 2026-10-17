@@ -43,8 +43,8 @@ def spark(frame):
 # ---------- Гаситель: высокий, в плаще с капюшоном, с гасильником на шесте ----------
 VIL = {'K': 0x08050e, 'd': 0x150c24, 'c': 0x22163a, 'C': 0x33224e, 'L': 0x4a3270, 'i': 0x050308,
        'e': 0x8ad0ff, 'E': 0xf0fbff, 'g': 0x2e5a7e, 'h': 0xb8b4c8, 'H': 0x7a7690,
-       'm': 0x6a6a7a, 'M': 0xa8a8b8, 'w': 0x4a3a2a, 'W': 0x6a5640,
-       'q': 0x1a2030, 'Q': 0x3a4660, 'a': 0x6a3aa0, 'A': 0xa070e0, 's': 0x2a1e3e, 'S': 0x3e2e58}
+       'm': 0x6a6a7a, 'M': 0xa8a8b8, 'w': 0x3e2e1e, 'W': 0x6a5236,
+       'q': 0x1a2030, 'Q': 0x3a4660, 'a': 0x6a3aa0, 'A': 0xa070e0, 's': 0x2a1e3e, 'S': 0x3e2e58, 'r': 0x4a1424, 'k': 0x2a1e12}
 
 
 def villain(frame, cast=False):
@@ -109,29 +109,50 @@ def villain(frame, cast=False):
             for ex in (cx - 1, cx + 2): G.set(ex, 7, 'e'); G.set(ex, 10, 'g')
     else:
         G.row(9, cx - 1, 'g'); G.set(cx + 2, 9, 'g')
+    # подкладка плаща в разрезе — тёмно-красная
+    for y in range(21, 44):
+        if G.get(cx + 2, y) not in '.': G.set(cx + 2, y, 'r')
+    # худое лицо еле видно в свете глаз: скулы и подбородок
+    if not blink:
+        G.set(cx - 1, 10, 'H'); G.set(cx + 2, 10, 'H'); G.set(cx, 11, 'H'); G.set(cx + 1, 11, 'H')
+
+    def staff(points):
+        """Корявый посох: две колонки (светлая и тёмная), сучки, металлический наконечник внизу."""
+        for i, (x, y) in enumerate(points):
+            G.set(x, y, 'W'); G.set(x + 1, y, 'w')
+            if i % 9 == 4: G.set(x - 1, y, 'w'); G.set(x - 1, y + 1, 'k')   # сучок
+        bx, by = points[-1]
+        G.set(bx, by + 1, 'M'); G.set(bx + 1, by + 1, 'm')
+
+    def crook_and_bell(tx, ty, swing):
+        """Загнутый крюк наверху посоха и колпак-гасильник на цепочке."""
+        for x, y in ((tx, ty), (tx, ty - 1), (tx + 1, ty - 2), (tx + 2, ty - 2), (tx + 3, ty - 2), (tx + 4, ty - 1), (tx + 4, ty)):
+            G.set(x, y, 'W'); G.set(x, y - 1, 'w') if y == ty - 2 else None
+        bx = tx + 4 + swing
+        G.set(bx, ty + 1, 'm'); G.set(bx, ty + 2, 'M')
+        G.row(ty + 3, bx - 1, 'mMm'); G.row(ty + 4, bx - 2, 'mMMMm'); G.row(ty + 5, bx - 2, 'KKKKK')
+        G.set(bx, ty + 3, 'E')  # заклёпка блестит
+        return bx, ty + 4
+
     if cast:
-        # шест поднят над головой, на гасильнике — тёмное сияние
-        for k in range(24):
-            x, y = cx + 5 + k // 3, 24 - k
-            G.set(x, y, 'w'); G.set(x + 1, y, 'W') if k % 3 == 0 else None
-        G.row(20, cx + 4, 'hH'); G.row(21, cx + 4, 'Hh')   # костлявая рука
-        tx, ty = cx + 5 + 23 // 3, 1
-        for x in range(tx - 6, tx + 7):
-            for y in range(0, ty + 9):
-                d = ((x - tx) ** 2 + (y - ty - 2) ** 2) ** 0.5
+        # посох поднят над головой, колпак раскачивается, вокруг — тёмное сияние
+        pts = [(cx + 4 + k // 3, 26 - k) for k in range(22)]
+        staff(pts[::-1])
+        G.row(20, cx + 3, 'cdhH'); G.row(21, cx + 3, 'dHh')   # рукав и костлявая рука
+        bx, by = crook_and_bell(pts[-1][0], pts[-1][1], 1 if frame else 0)
+        for x in range(bx - 6, bx + 7):
+            for y in range(0, by + 8):
+                d = ((x - bx) ** 2 + (y - by) ** 2) ** 0.5
                 if G.get(x, y) != '.': continue
                 if 3.2 < d <= 4.3: G.set(x, y, 'a' if (x + y + frame) % 3 else 'A')
                 elif 4.8 < d <= 5.6 and (x * 3 + y + frame * 2) % 4 == 0: G.set(x, y, 'A')
-        G.row(ty, tx - 1, 'mMm'); G.row(ty + 1, tx - 2, 'mMMmm'); G.row(ty + 2, tx - 2, 'KKKKK')
     else:
-        # шест в руке, на конце — колпачок-гасильник с заклёпкой и цепочкой
-        for y in range(5, 47):
-            G.set(cx + 9, y, 'w')
-            if y % 6 == 0: G.set(cx + 9, y, 'W')
-        G.row(1, cx + 8, 'mMm'); G.row(2, cx + 7, 'mMMMm'); G.row(3, cx + 6, 'mmMMmmm'); G.row(4, cx + 6, 'KKKKKKK')
-        G.set(cx + 9, 2, 'E')
-        G.set(cx + 6, 5, 'm'); G.set(cx + 6, 6, 'M'); G.set(cx + 6, 7, 'm')
-        G.row(23, cx + 7, 'hHh'); G.row(24, cx + 7, 'HhH'); G.row(25, cx + 8, 'h')   # костлявые пальцы
+        # посох стоит рядом, рука держит его; рукав с рваным краем
+        staff([(cx + 9, y) for y in range(6, 46)])
+        crook_and_bell(cx + 9, 6, 0)
+        for y in range(15, 23): G.row(y, cx + 6, 'cd')
+        G.row(23, cx + 6, 'dKd')
+        G.row(23, cx + 8, 'hHh'); G.row(24, cx + 8, 'HhH'); G.row(25, cx + 9, 'h')   # костлявые пальцы на древке
     G.outline('K')
     return G
 
