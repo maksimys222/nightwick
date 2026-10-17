@@ -223,10 +223,35 @@ NAMES = {  # символ: (цвет, название для схемы)
     's': (0x4a5a88, 'отблеск луны, слабый'),
     'o': (0x9a5a32, 'ставня на свету'),
     'n': (0x5a2a18, 'ставня в тени'),
+    # дерево и болото
+    'q': (0x9a7a48, 'дерево на свету'),
+    'w': (0x6a5232, 'дерево'),
+    'x': (0x3e3020, 'дерево в тени'),
+    'm': (0x3e7a34, 'мох'),
+    'v': (0x7ac05a, 'мох, листик на свету'),
+    'R': (0xd04a3a, 'шляпка гриба'),
+    'i': (0xf4e8d8, 'пятнышко, ножка гриба'),
+    'z': (0x2a4a3a, 'спящий огонёк'),
+    # камень и полоски маяка
+    'S': (0xbcb2a6, 'камень на свету'),
+    'T': (0x9a9088, 'камень'),
+    'U': (0x6e665e, 'камень в тени'),
+    'V': (0x554e46, 'камень в тени, тёмный'),
+    'J': (0x7e766c, 'шов между камнями'),
+    'Q': (0x3e3832, 'шов в тени'),
+    'A': (0xf4eee8, 'белая полоса'),
+    'F': (0xc8beb4, 'белая полоса в тени'),
+    'G': (0xd03a30, 'красная полоса'),
+    'Z': (0x962a24, 'красная полоса в тени'),
+    'O': (0x8a5430, 'дверь'),
+    'N': (0x5a3018, 'дверь в тени'),
+    'k': (0x2a2230, 'окошко'),
 }
 
 # свой цвет огня у газового и упрямого
 GAS = {'E': 0x3a7aff, 'Y': 0x8ac0ff, 'P': 0xd0ecff, 'a': 0x34405a, 'b': 0x4a6090, 'c': 0x8ab0e8, 'B': 0x8a96a8, 'C': 0xe8eef8}
+MARSH = {'E': 0x22b060, 'Y': 0x7af0a0, 'P': 0xc8ffd8}
+BEAM = {'E': 0xffb030, 'Y': 0xfff0a0, 'P': 0xfffbe0}
 RED = {'E': 0xff3a1a, 'Y': 0xff7a50, 'P': 0xffc4a0, 'a': 0x5a3030, 'b': 0x8a4a3a, 'c': 0xc87050}
 
 GLASS_ON = [
@@ -326,11 +351,11 @@ def stubborn_rows(on):
     return rows
 
 
-def from_rows(rows, over=None):
-    assert len(rows) == 40, len(rows)
-    c = C(16, 40)
+def from_rows(rows, over=None, w=16, h=40):
+    assert len(rows) == h, len(rows)
+    c = C(w, h)
     for y, r in enumerate(rows):
-        assert len(r) == 16, (y, r)
+        assert len(r) == w, (y, r)
         for x, ch in enumerate(r):
             col = (over or {}).get(ch, NAMES[ch][0])
             if col is not None:
@@ -339,16 +364,152 @@ def from_rows(rows, over=None):
 
 
 COLOR_NAMES = {v[0]: v[1] for v in NAMES.values() if v[0] is not None}
-for over in (GAS, RED):
+for over in (GAS, RED, MARSH, BEAM):
     for ch, col in over.items():
         COLOR_NAMES.setdefault(col, NAMES[ch][1])
 COLOR_NAMES.update({MD: 'металл в тени', MM: 'металл', ML: 'металл на свету', WARM: 'металл у огня', MOON: 'отблеск луны'})
 
 oil = lambda on: from_rows(oil_rows(on))
 gas = lambda on: from_rows(gas_rows(on), GAS if on else None)
+class Grid:
+    """Холст из символов: рисуем по клеткам, потом превращаем в картинку."""
+    def __init__(s, w, h): s.w, s.h, s.g = w, h, [['.'] * w for _ in range(h)]
+
+    def set(s, x, y, ch):
+        if 0 <= x < s.w and 0 <= y < s.h: s.g[y][x] = ch
+
+    def row(s, y, x0, text):
+        """Пробел в text — пропустить клетку (оставить, что было)."""
+        for i, ch in enumerate(text):
+            if ch != ' ': s.set(x0 + i, y, ch)
+
+    def rows(s): return [''.join(r) for r in s.g]
+
+
+def marsh_grid(on):
+    """Болотный фонарь: кривой шест, сверху стеклянный шар в клетке из прутьев, внутри — живой огонёк."""
+    G = Grid(16, 40)
+    # корни и шест (x — левый край шеста в строке)
+    G.row(38, 4, 'xwqwwwxx')
+    G.row(37, 5, 'xqwwx')
+    path = {36: 7, 35: 8, 34: 8, 33: 8, 32: 7, 31: 7, 30: 6, 29: 6, 28: 7, 27: 7, 26: 8, 25: 8, 24: 7}
+    for y, x in path.items():
+        G.set(x, y, 'q'); G.set(x + 1, y, 'x')
+    G.set(5, 30, 'w'); G.set(6, 31, 'w')                       # сучок-утолщение
+    G.row(29, 8, 'wx'); G.row(28, 9, 'wx'); G.row(27, 10, 'xm'); G.row(26, 11, 'vm'); G.set(12, 25, 'v')  # веточка
+    G.set(7, 34, 'm'); G.set(8, 33, 'v'); G.set(7, 25, 'm'); G.set(6, 24, 'v')  # мох
+    G.row(36, 10, 'RRR'); G.set(11, 36, 'i'); G.set(11, 35, 'R'); G.set(11, 37, 'i')  # грибок у корня
+    # шар: центр (7.5, 17), радиус 4.3
+    cells = [(x, y) for y in range(12, 23) for x in range(2, 14) if (x - 7.5) ** 2 + (y - 17) ** 2 <= 4.3 ** 2]
+    inside = set(cells)
+    for x, y in cells:
+        border = any((x + dx, y + dy) not in inside for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        if on:
+            d = ((x - 7.5) ** 2 + (y - 17) ** 2) ** 0.5
+            G.set(x, y, 'E' if border else ('P' if d < 2 else 'Y'))
+        else:
+            G.set(x, y, 'g' if y < 17 else 'f')
+    if on:  # огонёк-завиток и блик на стекле
+        for x, y in ((7, 15), (8, 16), (8, 17), (7, 18), (6, 17)): G.set(x, y, 'W')
+        G.set(5, 14, 'P')
+    else:
+        G.set(5, 14, 'r'); G.set(6, 13, 's'); G.set(5, 15, 's')
+        G.set(7, 17, 'z'); G.set(8, 16, 'z')
+    # клетка из прутьев вокруг шара и петля сверху
+    for y in range(15, 20): G.set(3, y, 'q'); G.set(12, y, 'x')
+    for x, y in ((4, 14), (4, 13), (5, 12), (4, 20), (4, 21), (5, 22)): G.set(x, y, 'q')
+    for x, y in ((11, 14), (11, 13), (10, 12), (11, 20), (11, 21), (10, 22)): G.set(x, y, 'x')
+    G.row(11, 6, 'qwwx'); G.row(10, 7, 'wx'); G.set(6, 9, 'q'); G.set(9, 9, 'x'); G.row(8, 7, 'qx')
+    G.row(23, 6, 'qwwx')  # гнездо из прутьев, на котором лежит шар
+    return G.rows()
+
+
+def lantern_room(G, x0, top, on):
+    """Фонарная комната маяка: купол, карниз, две грани стекла (как у уличного фонаря), нижняя рама.
+    x0 — левый столбец рамы (ширина 12), top — верхушка купола; стекло — строки top+7 … top+15."""
+    G.row(top, x0 + 5, 'HM')
+    for i, w in enumerate((2, 4, 6, 8, 10)):
+        G.row(top + 1 + i, x0 + 6 - w // 2, 'L' * (w // 2) + 'D' * (w // 2 - 1) + 'K')
+    G.row(top + 6, x0 - 1, (EAVE_ON if on else EAVE_OFF)[1:15])
+    for i, r in enumerate(GLASS_ON if on else GLASS_OFF):
+        G.row(top + 7 + i, x0, r[2:14])
+    G.row(top + 16, x0, (FRAME_ON if on else FRAME_OFF)[2:14])
+
+
+def tower(G, y0, y1, wt, wb, cx, paint):
+    """Башня-трапеция от ширины wt (верх) до wb (низ); paint(x, y, x0, x1, lit) — символ клетки."""
+    for y in range(y0, y1 + 1):
+        k = (y - y0) / max(1, y1 - y0)
+        half = (wt + (wb - wt) * k) / 2
+        x0, x1 = round(cx - half), round(cx + half) - 1
+        for x in range(x0, x1 + 1):
+            G.set(x, y, paint(x, y, x0, x1, x < cx))
+
+
+def stone(y0):
+    def paint(x, y, x0, x1, lit):
+        course = (y - y0) // 4
+        seam = (y - y0) % 4 == 3 or ((x - x0 + course * 2) % 5 == 0)
+        if seam: return 'J' if lit else 'Q'
+        if lit: return 'S' if x == x0 else 'T'
+        return 'V' if x == x1 else 'U'
+    return paint
+
+
+def stripes(y1):
+    def paint(x, y, x0, x1, lit):
+        red = ((y1 - y) // 9) % 2 == 1
+        if x == x1: return 'Z' if red else 'U'
+        return ('G' if lit else 'Z') if red else ('A' if lit else 'F')
+    return paint
+
+
+def beacon_grid(on):
+    """Маяк: каменная башенка 20×56, наверху фонарная комната (центр стекла — строка 14)."""
+    G = Grid(20, 56)
+    lantern_room(G, 4, 3, on)                     # стекло 10–18, центр — строка 14
+    for x in range(2, 18, 3): G.set(x, 19, 'M')   # столбики перил
+    G.row(20, 1, 'HLLLLLLLLMDDDDDDDDK')           # балкон
+    G.row(21, 2, 'KDDDDDDDDDDDDDDDK')
+    G.row(22, 5, 'MD MD MD MD K')                 # кронштейны под балконом
+    tower(G, 23, 51, 10, 14, 10, stone(23))
+    for y in (30, 31, 32): G.row(y, 7, 'kk')       # окошко-бойница
+    if on: G.set(7, 31, 'b')                       # в окошке тёплый отсвет
+    G.row(46, 8, 'NOON')
+    for y in range(47, 52): G.row(y, 8, 'OOCN' if y == 49 else 'OOON')
+    G.row(52, 2, 'SSSSSSSSUUUUUUUUV')
+    G.row(53, 2, 'TTTTTTTTUUUUUUUUV')
+    G.row(54, 2, 'JJJJJJJJQQQQQQQQQ')
+    return G.rows()
+
+
+def lighthouse_grid(on):
+    """Старый маяк: высокий, в красно-белую полоску, 24×72 (центр стекла — строка 12)."""
+    G = Grid(24, 72)
+    lantern_room(G, 6, 1, on)                     # стекло 8–16, центр — строка 12
+    for x in range(3, 21, 3): G.set(x, 17, 'M')
+    G.row(18, 2, 'HLLLLLLLLLLMDDDDDDDDDK')        # галерея
+    G.row(19, 3, 'KDDDDDDDDDDDDDDDDDDK')
+    G.row(20, 6, 'MD MD MD MD K')
+    tower(G, 21, 64, 12, 18, 12, stripes(64))
+    for y0 in (30, 44):
+        for y in range(y0, y0 + 3): G.row(y, 10, 'kk')
+    if on: G.set(10, 31, 'b')
+    tower(G, 65, 69, 20, 22, 12, stone(65))
+    G.row(62, 10, 'NOON')
+    for y in range(63, 70): G.row(y, 10, 'OOCN' if y == 66 else 'OOON')
+    G.row(70, 1, 'JJJJJJJJJJJQQQQQQQQQQQ')
+    return G.rows()
+
+
+marsh = lambda on: from_rows(marsh_grid(on), MARSH if on else None)
+beacon = lambda on: from_rows(beacon_grid(on), BEAM if on else None, 20, 56)
+lighthouse = lambda on: from_rows(lighthouse_grid(on), BEAM if on else None, 24, 72)
+
+
 ITEMS = [
     ('lamp_oil', oil), ('lamp_gas', gas), ('lamp_stubborn', lambda on: from_rows(stubborn_rows(on), RED if on else None)),
-    ('lamp_marsh', marsh), ('beacon', beacon), ('lighthouse', lambda on: beacon(on, True)),
+    ('lamp_marsh', marsh), ('beacon', beacon), ('lighthouse', lighthouse),
 ]
 
 sheets = []

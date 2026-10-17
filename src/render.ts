@@ -241,7 +241,7 @@ export class Renderer {
       outer.position.set(x, y);
       outer.width = outer.height = R;
       outer.tint = h.tint;
-      outer.alpha = 0.55 * (1 + h.flash * 0.8);
+      outer.alpha = (h.size > 1 ? 0.38 : 0.55) * (1 + h.flash * 0.8); // маяк светит шире, но мягче
       core.position.set(x, y);
       core.width = core.height = 14 * h.size * f;
       core.tint = white;
