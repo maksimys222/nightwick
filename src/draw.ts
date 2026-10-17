@@ -334,28 +334,42 @@ export function drawBench(g: Graphics) {
   g.rect(c.x + 8, c.y - 13, 3, 3).fill(0xffd36b); // фонарь на починке
 }
 
-/** Телескоп на треноге: латунная труба смотрит в небо, линза поблёскивает. */
+/** Телескоп: латунная труба на треноге с подносом, искатель, колесо наводки; рядом столик с картой звёзд. */
 export function drawTelescope(g: Graphics, t: number) {
   const c = toScreen(0.5, 0.5);
   const x = c.x, y = c.y;
-  g.ellipse(x, y + 1, 8, 2.5).fill({ color: 0x000000, alpha: 0.25 });
-  // тренога
-  g.poly([x - 7, y + 1, x - 6, y + 1, x - 1, y - 10, x - 2, y - 10]).fill(0x5a3a1e);
-  g.poly([x + 6, y + 1, x + 7, y + 1, x + 1, y - 10, x, y - 10]).fill(0x4a2e18);
-  g.rect(x, y - 10, 1, 12).fill(0x6b4423);
-  g.rect(x - 3, y - 12, 7, 2).fill(0x7a5232);
-  // труба (ступеньками): тёмная сторона, светлая полоса блика, латунные кольца
-  for (let i = 0; i < 8; i++) {
-    const px = x - 6 + i * 2, py = y - 12 - i * 2;
-    g.rect(px, py, 4, 3).fill(i < 3 ? 0xa8762a : 0xc8963e);
-    g.rect(px, py, 4, 1).fill(i < 3 ? 0xc8963e : 0xf0c870);
+  g.ellipse(x, y + 1, 9, 3).fill({ color: 0x000000, alpha: 0.25 });
+  // тренога с подносом между ногами
+  g.poly([x - 8, y + 1, x - 7, y + 1, x - 1, y - 12, x - 2, y - 12]).fill(0x6b4423);
+  g.poly([x + 7, y + 1, x + 8, y + 1, x + 1, y - 12, x, y - 12]).fill(0x4a2e18);
+  g.rect(x, y - 12, 1, 14).fill(0x5a3a20);
+  g.poly([x - 5, y - 4, x, y - 6, x + 5, y - 4, x, y - 2]).fill(0x8a5a32);
+  g.rect(x - 3, y - 14, 7, 2).fill(0x7a5232);
+  g.rect(x - 1, y - 16, 3, 2).fill(0xc8963e);      // поворотный узел
+  g.circle(x + 3, y - 15, 1.5).fill(0x8a6a2a);       // колесо наводки
+  // труба: от окуляра вниз-слева к объективу вверх-справа, латунь с бликом и кольцами
+  for (let i = 0; i < 10; i++) {
+    const px = x - 8 + i * 2, py = y - 13 - i * 2;
+    g.rect(px, py, 4, 4).fill(i < 4 ? 0xa8762a : 0xc8963e);
+    g.rect(px, py, 4, 1).fill(i < 4 ? 0xc8963e : 0xf0c870);
+    g.rect(px + 3, py + 3, 1, 1).fill(0x7a5420);
   }
-  for (const i of [2, 5]) g.rect(x - 6 + i * 2, y - 13 - i * 2, 1, 5).fill(0x6a4a1a);
-  g.rect(x - 8, y - 10, 3, 3).fill(0x3a2a1a); // окуляр
-  g.rect(x + 8, y - 29, 5, 5).fill(0xe8c060);
-  g.rect(x + 9, y - 28, 3, 3).fill(0x3a5a8a);
-  // блик на линзе
-  g.rect(x + 10, y - 27, 1, 1).fill(Math.sin(t * 2) > 0.6 ? 0xffffff : 0x9ad0ff);
+  for (const i of [3, 7]) g.rect(x - 8 + i * 2, y - 14 - i * 2, 1, 6).fill(0x6a4a1a);
+  g.rect(x - 11, y - 12, 4, 3).fill(0x2a2018);       // окуляр
+  g.rect(x - 11, y - 12, 1, 3).fill(0x4a3a2a);
+  g.rect(x + 11, y - 34, 6, 6).fill(0xe8c060);       // объектив
+  g.rect(x + 12, y - 33, 4, 4).fill(0x2a4a7a);
+  g.rect(x + 13, y - 32, 1, 1).fill(Math.sin(t * 2) > 0.6 ? 0xffffff : 0x9ad0ff); // блик
+  // маленький искатель сверху
+  g.rect(x + 1, y - 26, 6, 2).fill(0x5a5a66);
+  g.rect(x + 7, y - 27, 2, 2).fill(0x9ad0ff);
+  // столик с картой звёзд и циркулем
+  g.rect(x - 15, y - 7, 1, 7).fill(0x4a2e18);
+  g.rect(x - 9, y - 7, 1, 7).fill(0x4a2e18);
+  g.poly([x - 17, y - 8, x - 12, y - 10, x - 7, y - 8, x - 12, y - 6]).fill(0x8a5a32);
+  g.poly([x - 16, y - 8.5, x - 12, y - 10, x - 8, y - 8.5, x - 12, y - 7]).fill(0x1c2a4a);
+  for (const [dx, dy] of [[-14, -9], [-12, -8], [-10, -9], [-12, -9.5]]) g.rect(x + dx, y + dy, 1, 1).fill(0xfff4c8);
+  g.rect(x - 11, y - 11, 1, 3).fill(0x9a9aa8);
 }
 
 /** Огород Агаты на подоконнике: ящик с землёй, рассада, два подсолнуха и лейка. */
@@ -538,7 +552,8 @@ export function drawOven(g: Graphics, t: number) {
   g.poly([l.x + 3, l.y - 22, l.x + 8, l.y - 22, l.x + 8, l.y - 29, l.x + 3, l.y - 29]).fill(0xb08050);
 }
 
-/** Камин: каменная кладка, поленья и живой огонь, искры; на полке свечи, часы и баночка. */
+/** Камин: каменная кладка, каменный под перед топкой, поленья крест-накрест, живой огонь из нескольких языков,
+ *  угли, чайник на крюке, кочерга и совок на подставке; на полке — свечи, часы и баночка. */
 export function drawFireplace(g: Graphics, t: number) {
   isoBox(g, 2, 1, 30, 0x9a9088, 0x7e766c, 0x6a625a);
   // камни на передней стенке
@@ -547,39 +562,74 @@ export function drawFireplace(g: Graphics, t: number) {
     for (let u = (v / 6) % 2 ? 0.1 : 0.2; u < 1; u += 0.2) frontQuad(g, 2, 1, u, u + 0.025, v, v + 6, 0x6e665e);
     for (let u = (v / 6) % 2 ? 0.02 : 0.12; u < 1; u += 0.2) frontQuad(g, 2, 1, u, u + 0.06, v + 4, v + 5, 0xb4aaa0);
   }
-  // топка
-  frontQuad(g, 2, 1, 0.22, 0.78, 2, 18, 0x4a443c);
-  frontQuad(g, 2, 1, 0.25, 0.75, 2, 16, 0x1a1210);
-  frontQuad(g, 2, 1, 0.3, 0.7, 2, 4, 0x5a3418); // поленья
-  frontQuad(g, 2, 1, 0.34, 0.5, 4, 5, 0x7a4a26);
-  const f1 = Math.sin(t * 9) > 0 ? 2 : 0, f2 = Math.sin(t * 13 + 1) > 0 ? 2 : 0;
-  frontQuad(g, 2, 1, 0.32, 0.5, 4, 11 + f1, 0xff6a1a);
-  frontQuad(g, 2, 1, 0.48, 0.68, 4, 10 + f2, 0xff9a2a);
-  frontQuad(g, 2, 1, 0.38, 0.6, 4, 8, 0xffc850);
-  frontQuad(g, 2, 1, 0.44, 0.54, 4, 6, 0xfff0b0);
-  // искры летят вверх
-  for (let k = 0; k < 3; k++) {
-    const ph = (t * 0.9 + k * 0.37) % 1;
-    frontQuad(g, 2, 1, 0.42 + k * 0.06 + Math.sin(t * 3 + k) * 0.02, 0.43 + k * 0.06 + Math.sin(t * 3 + k) * 0.02, 8 + ph * 8, 9 + ph * 8, 0xffd36b);
+  // топка с аркой и закопчённым верхом
+  frontQuad(g, 2, 1, 0.2, 0.8, 0, 19, 0x4a443c);
+  frontQuad(g, 2, 1, 0.24, 0.76, 0, 17, 0x1a1210);
+  frontQuad(g, 2, 1, 0.24, 0.76, 13, 17, 0x2a1e18);
+  // отсвет огня на стенках топки
+  const glow = 0.5 + 0.5 * Math.sin(t * 6) * Math.sin(t * 2.3);
+  frontQuad(g, 2, 1, 0.24, 0.3, 1, 12, glow > 0.5 ? 0x6a2a14 : 0x5a2210);
+  frontQuad(g, 2, 1, 0.7, 0.76, 1, 12, glow > 0.5 ? 0x5a2210 : 0x4a1a0c);
+  // угли и поленья крест-накрест
+  frontQuad(g, 2, 1, 0.28, 0.72, 0, 2, 0x8a2a10);
+  for (let k = 0; k < 6; k++) frontQuad(g, 2, 1, 0.3 + k * 0.07, 0.33 + k * 0.07, 0.5, 1.5, Math.sin(t * 5 + k * 2) > 0 ? 0xff8a2a : 0xd04a1a);
+  frontQuad(g, 2, 1, 0.3, 0.62, 2, 4, 0x5a3418);
+  frontQuad(g, 2, 1, 0.4, 0.72, 3, 5, 0x6b4423);
+  frontQuad(g, 2, 1, 0.38, 0.42, 2, 4, 0xc89a62); // спил полена
+  // огонь: несколько языков разной высоты, каждый дрожит по-своему
+  const tongues = [[0.32, 0.42, 9, 0], [0.4, 0.52, 13, 1.7], [0.5, 0.6, 11, 3.1], [0.58, 0.68, 8, 4.4]];
+  for (const [u0, u1, h, ph] of tongues) {
+    const hh = h + Math.sin(t * 9 + ph) * 2 + Math.sin(t * 23 + ph * 2);
+    frontQuad(g, 2, 1, u0, u1, 4, 4 + hh, 0xff5a1a);
+    frontQuad(g, 2, 1, u0 + 0.015, u1 - 0.015, 4, 4 + hh * 0.75, 0xff9a2a);
+    frontQuad(g, 2, 1, u0 + 0.03, u1 - 0.03, 4, 4 + hh * 0.45, 0xffd36b);
   }
+  frontQuad(g, 2, 1, 0.44, 0.56, 4, 6, 0xfff4c8);
+  // искры летят вверх
+  for (let k = 0; k < 4; k++) {
+    const ph = (t * 0.9 + k * 0.29) % 1;
+    const u = 0.4 + k * 0.05 + Math.sin(t * 3 + k) * 0.02;
+    frontQuad(g, 2, 1, u, u + 0.012, 10 + ph * 7, 11 + ph * 7, ph < 0.7 ? 0xffd36b : 0xff8a2a);
+  }
+  // чайник на крюке над огнём
+  frontQuad(g, 2, 1, 0.49, 0.51, 12, 17, 0x2a2a34);
+  frontQuad(g, 2, 1, 0.42, 0.58, 9, 12, 0x3a3a44);
+  frontQuad(g, 2, 1, 0.43, 0.5, 11, 12, 0x5a5a66);
+  frontQuad(g, 2, 1, 0.58, 0.62, 10, 11, 0x3a3a44); // носик
+  // каменный под перед топкой
+  const l = toScreen(0, 1), b = toScreen(2, 1);
+  const P = (u: number, d: number) => [l.x + (b.x - l.x) * u - d * 8, l.y + (b.y - l.y) * u + d * 4];
+  g.poly([...P(0.12, 0), ...P(0.88, 0), ...P(0.88, 0.5), ...P(0.12, 0.5)]).fill(0x8e887e);
+  g.poly([...P(0.12, 0.5), ...P(0.88, 0.5), ...P(0.88, 0.6), ...P(0.12, 0.6)]).fill(0x5a524a);
+  // кочерга и совок на подставке справа
+  const [tx, ty] = P(0.94, 0.3);
+  g.rect(tx, ty - 16, 1, 16).fill(0x2a2a34);
+  g.rect(tx + 2, ty - 15, 1, 15).fill(0x3a3a44);
+  g.rect(tx - 1, ty - 17, 3, 1).fill(0xc8963e);
+  g.rect(tx + 1, ty - 2, 4, 2).fill(0x3a3a44);
   // полка
-  frontQuad(g, 2, 1, 0.08, 0.92, 30, 33, 0x6b4423);
-  frontQuad(g, 2, 1, 0.08, 0.92, 32, 33, 0x8a5a32);
-  // на полке: две свечи, часы, баночка
-  const top = (u: number, v: number) => { const l = toScreen(0, 1), b = toScreen(2, 1); return [l.x + (b.x - l.x) * u, l.y + (b.y - l.y) * u - v]; };
-  for (const u of [0.18, 0.82]) {
+  frontQuad(g, 2, 1, 0.06, 0.94, 30, 33, 0x6b4423);
+  frontQuad(g, 2, 1, 0.06, 0.94, 32, 33, 0x8a5a32);
+  const top = (u: number, v: number) => [l.x + (b.x - l.x) * u, l.y + (b.y - l.y) * u - v];
+  for (const u of [0.16, 0.84]) {
     const [x, y] = top(u, 33);
     g.rect(x, y - 5, 2, 5).fill(0xf4ecd8);
+    g.rect(x - 1, y - 1, 4, 1).fill(0xc8963e);
     g.rect(x, y - 7, 2, 2).fill(Math.sin(t * 7 + u * 9) > 0 ? 0xffd36b : 0xffb040);
   }
   const [cx, cy] = top(0.5, 33);
-  g.rect(cx - 3, cy - 7, 6, 7).fill(0x7a4a26);
-  g.circle(cx, cy - 4, 2).fill(0xf4ecd8);
+  g.rect(cx - 3, cy - 8, 6, 8).fill(0x7a4a26);
+  g.rect(cx - 2, cy - 9, 4, 1).fill(0x9a6a3a);
+  g.circle(cx, cy - 4.5, 2.2).fill(0xf4ecd8);
+  const ang = t * 0.5;
+  g.rect(cx + Math.round(Math.cos(ang) * 1.5), cy - 4.5 + Math.round(Math.sin(ang) * 1.5), 1, 1).fill(0x1a1420);
   g.rect(cx, cy - 5, 1, 1).fill(0x1a1420);
-  g.rect(cx, cy - 4, 1, 1).fill(0x1a1420);
   const [jx, jy] = top(0.66, 33);
   g.rect(jx, jy - 4, 3, 4).fill(0x6a9ac8);
   g.rect(jx, jy - 5, 3, 1).fill(0xa87a48);
+  const [px, py] = top(0.3, 33);
+  g.rect(px, py - 6, 4, 5).fill(0x8a5a32);   // рамка с рисунком Ники
+  g.rect(px + 1, py - 5, 2, 3).fill(0xffd23a);
 }
 
 // ---------- персонажи сюжета ----------

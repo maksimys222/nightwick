@@ -2,7 +2,8 @@
 
 import { Container, Graphics } from 'pixi.js';
 import { toScreen } from './iso';
-import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, stationCenter, type Station } from './room';
+import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, DECOR, CAT, stationCenter, type Station } from './room';
+import { drawBookshelf, drawArmchair, drawCat, drawWoodpile, drawWorkbench, drawCrates, drawCoatRack, drawDiningTable, drawPlant } from './roomDecor';
 import { st, stationOpen, questVisible, questState, type Light } from './game';
 import { QUESTS, residentById, type ResidentId } from './story';
 import { hash, diamond, drawPerson, drawTelescope, drawPlanter, drawAnvil, drawMapTable, drawMailbag, drawPerch, drawOven, drawFireplace } from './draw';
@@ -26,6 +27,8 @@ export class RoomView implements View {
   private furniture: { s: Station; g: Graphics; npc: Figure | null }[] = [];
   private fire = new Graphics();
   private player = new Figure();
+  private cat = new Graphics();
+  private table: Graphics | null = null;
 
   constructor() {
     this.root.addChild(buildShell(), this.board, this.objects);
@@ -38,16 +41,17 @@ export class RoomView implements View {
 
   lights(): Light[] {
     const ls: Light[] = [
-      { x: 8, y: 1.5, r: 3.5, id: 100 },
-      { x: 4.5, y: 3.5, r: 6.5, id: 101 },
+      { x: FIREPLACE.x + 1, y: 1.5, r: 4, id: 100 },
+      { x: 5.5, y: 4.5, r: 8, id: 101 },
+      { x: 2.5, y: 6.5, r: 2.2, id: 103 },
       { x: st.player.x, y: st.player.y, r: 1.8, id: -1 },
       { x: st.spark.x, y: st.spark.y, r: 1.1, id: -2 },
     ];
-    if (st.movedIn.includes('mila')) ls.push({ x: 7, y: 8, r: 2.5, id: 102 });
+    if (st.movedIn.includes('mila')) ls.push({ x: 8, y: 9.5, r: 2.5, id: 102 });
     return ls;
   }
 
-  focus() { return { x: 3.4, y: 2.4 }; }
+  focus() { return { x: 4.6, y: 3.6 }; }
 
   private place(g: Container, x: number, y: number, z: number) {
     const s = toScreen(x, y);
@@ -79,12 +83,28 @@ export class RoomView implements View {
       }
       this.furniture.push({ s, g, npc });
     }
+    // мебель, которая стоит всегда
+    for (const d of DECOR) {
+      const g = new Graphics();
+      this.place(g, d.x, d.y, d.x + d.w / 2 + d.y + d.h / 2);
+      if (d.kind === 'bookshelf') drawBookshelf(g);
+      if (d.kind === 'armchair') drawArmchair(g);
+      if (d.kind === 'woodpile') drawWoodpile(g);
+      if (d.kind === 'workbench') drawWorkbench(g);
+      if (d.kind === 'crates') drawCrates(g);
+      if (d.kind === 'coatrack') drawCoatRack(g);
+      if (d.kind === 'plant') drawPlant(g, hash(d.x, d.y));
+      if (d.kind === 'table') this.table = g;
+    }
+    this.place(this.cat, CAT.x, CAT.y, CAT.x + CAT.y);
     this.objects.addChild(this.player);
   }
 
   update() {
     const t = st.time;
     drawFireplace(this.fire.clear(), t);
+    drawCat(this.cat.clear(), t);
+    if (this.table) drawDiningTable(this.table.clear(), t);
 
     for (const f of this.furniture) {
       const open = stationOpen(f.s);
@@ -144,7 +164,12 @@ function buildShell() {
     }
   }
   // ковёр под столом
-  for (let y = 2; y < 6; y++) for (let x = 3; x < 7; x++) diamond(g, x, y, (x === 3 || x === 6 || y === 2 || y === 5) ? 0x8a2a2a : 0xa83a32);
+  for (let y = 2; y < 8; y++) for (let x = 3; x < 9; x++) {
+    const edge = x === 3 || x === 8 || y === 2 || y === 7, inner = x === 4 || x === 7 || y === 3 || y === 6;
+    diamond(g, x, y, edge ? 0x7a2424 : inner ? 0xc8703a : 0xa83a32);
+  }
+  // коврик у камина
+  for (let x = 8; x < 10; x++) diamond(g, x, 1, 0x5a6a3a);
 
   // стены: раствор, потом кирпичи
   g.poly([...backPt(0, 0), ...backPt(RW, 0), ...backPt(RW, WALL_H), ...backPt(0, WALL_H)]).fill(0x6a5038);
@@ -170,7 +195,7 @@ function buildShell() {
   g.poly([...leftPt(0, WALL_H - 4), ...leftPt(RH, WALL_H - 4), ...leftPt(RH, WALL_H), ...leftPt(0, WALL_H)]).fill(0x6a3e1e);
 
   // окно на левой стене: за ним ночь и звёзды
-  const w0 = 3.4, w1 = 4.5;
+  const w0 = 2.3, w1 = 3.4;
   g.poly([...leftPt(w0, 18), ...leftPt(w1, 18), ...leftPt(w1, 40), ...leftPt(w0, 40)]).fill(0x4a2e1a);
   g.poly([...leftPt(w0 + 0.08, 20), ...leftPt(w1 - 0.08, 20), ...leftPt(w1 - 0.08, 38), ...leftPt(w0 + 0.08, 38)]).fill(0x101830);
   for (const [u, v] of [[0.3, 33], [0.7, 27], [0.55, 35], [0.2, 24]]) {
@@ -180,6 +205,20 @@ function buildShell() {
   const [mx0, my0] = leftPt((w0 + w1) / 2, 20), [mx1, my1] = leftPt((w0 + w1) / 2, 38);
   g.poly([mx0, my0, mx1, my1, mx1 + 1, my1, mx0 + 1, my0]).fill(0x4a2e1a);
 
+  // полка с банками на левой стене (над верстаком)
+  g.poly([...leftPt(3.8, 30), ...leftPt(5.2, 30), ...leftPt(5.2, 28), ...leftPt(3.8, 28)]).fill(0x6b4423);
+  for (const [u, c] of [[4.0, 0xc8603a], [4.35, 0x6a9ac8], [4.7, 0xe0b040], [5.0, 0x5aaa4a]] as const) {
+    const [x, y] = leftPt(u, 30);
+    g.rect(x - 1, y - 5, 3, 5).fill(c);
+    g.rect(x - 1, y - 6, 3, 1).fill(0xa87a48);
+  }
+  // картина на задней стене: солнце над крышами (каким город был раньше)
+  g.poly([...backPt(10.4, 24), ...backPt(11.8, 24), ...backPt(11.8, 40), ...backPt(10.4, 40)]).fill(0x8a5a32);
+  g.poly([...backPt(10.5, 25.5), ...backPt(11.7, 25.5), ...backPt(11.7, 38.5), ...backPt(10.5, 38.5)]).fill(0x9ad0f0);
+  g.poly([...backPt(10.5, 25.5), ...backPt(11.7, 25.5), ...backPt(11.7, 30), ...backPt(10.5, 30)]).fill(0x5aaa4a);
+  { const [x, y] = backPt(11.1, 35); g.circle(x, y, 2.5).fill(0xffd23a); }
+  // висячий фонарик над столом (на левой стене — кронштейн)
+  { const [x, y] = leftPt(6, 46); g.rect(x, y, 6, 1).fill(0x2e3450); g.rect(x + 5, y, 1, 4).fill(0x2e3450); g.rect(x + 3, y + 4, 5, 5).fill(0x2e3450); g.rect(x + 4, y + 5, 3, 3).fill(0xffd36b); }
   // дверь на левой стене
   const d0 = DOOR.y - 0.5, d1 = DOOR.y + 0.9;
   g.poly([...leftPt(d0, 0), ...leftPt(d1, 0), ...leftPt(d1, 36), ...leftPt(d0, 36)]).fill(0x3a2412);

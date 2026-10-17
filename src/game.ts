@@ -5,7 +5,7 @@
 
 import { W, H, BRIDGE, PATH, STONE, makeWorld, homeDoor, riverX, type Lamp, type LampKind, type Flower, type House } from './map';
 import { screenDirToTile } from './iso';
-import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, SPAWN, stationCenter, type Station } from './room';
+import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, SPAWN, stationCenter, type Station, DECOR } from './room';
 import {
   RESIDENTS, QUESTS, SPARK, SPARK_HOME, SPARK_TIPS, NOTES, ENDING, JOURNAL, residentById, type PageId,
   type ResidentId, type StationId, type NightStats, type Line, type Quest,
@@ -839,7 +839,7 @@ export interface Input { ix: number; iy: number; hold: boolean }
 function roomBlocked(tx: number, ty: number) {
   if (tx < 0 || ty < 0 || tx >= RW || ty >= RH) return true;
   const inside = (r: { x: number; y: number; w: number; h: number }) => tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h;
-  if (inside(FIREPLACE)) return true;
+  if (inside(FIREPLACE) || DECOR.some(inside)) return true;
   return STATIONS.some((s) => stationOpen(s) && inside(s));
 }
 
