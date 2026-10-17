@@ -29,7 +29,7 @@ export class NightView implements View {
   private dyn: Dyn[] = [];
   private anim: (() => void)[] = [];
   private player = new Figure();
-  private helperGs: Graphics[] = [];
+  private helperGs: Figure[] = [];
   private compass = new Graphics();
   private actorGs: Figure[] = [];
   private fogVer = -1;
@@ -183,7 +183,7 @@ export class NightView implements View {
     }
 
     while (this.helperGs.length < st.helpers.length) {
-      const g = new Graphics();
+      const g = new Figure();
       this.objects.addChild(g);
       this.helperGs.push(g);
     }
@@ -191,8 +191,7 @@ export class NightView implements View {
       const h = playing ? st.helpers[i] : undefined;
       g.visible = !!h;
       if (!h) return;
-      drawPerson(g.clear(), h.face, h.anim, h.moving, 0x3f6b3a, false, false);
-      if (h.tgt && 'oil' in h.tgt) g.rect(h.face > 0 ? 3 : -6, -8, 3, 4).fill(0x8a6a2a); // бидон
+      g.person('helper', h.face, h.anim, h.moving, 0x3f6b3a);
       const s = toScreen(h.x, h.y);
       g.position.set(Math.round(s.x), Math.round(s.y));
       g.zIndex = (h.x + h.y) * 10 + 1;
@@ -268,12 +267,13 @@ export class NightView implements View {
       f.visible = !!a && a.alpha > 0.01 && a.kind !== 'spark';
       if (!f.visible) return;
       if (a.kind === 'hero') f.hero(a.face, a.anim, a.moving, true);
-      else {
+      else if (a.kind !== 'villain' && a.kind !== 'sleeper' && a.kind !== 'smoke') {
+        f.person(a.id, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat);
+      } else {
         const g = f.graphics();
         if (a.kind === 'villain') drawVillain(g, a.face, st.time, a.cast);
         else if (a.kind === 'sleeper') drawSleeper(g);
         else if (a.kind === 'smoke') drawSmoke(g, a.anim);
-        else drawPerson(g, a.face, a.anim, a.moving, residentById(a.id as ResidentId).coat, false, false);
       }
       f.alpha = a.alpha;
       const s = toScreen(a.x, a.y);

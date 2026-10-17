@@ -22,7 +22,7 @@ export class RoomView implements View {
   private objects = new Container({ sortableChildren: true });
   private board = new Graphics();
   private boardKey = '';
-  private furniture: { s: Station; g: Graphics; npc: Graphics | null }[] = [];
+  private furniture: { s: Station; g: Graphics; npc: Figure | null }[] = [];
   private fire = new Graphics();
   private player = new Figure();
 
@@ -48,7 +48,7 @@ export class RoomView implements View {
 
   focus() { return { x: 3.4, y: 2.4 }; }
 
-  private place(g: Graphics, x: number, y: number, z: number) {
+  private place(g: Container, x: number, y: number, z: number) {
     const s = toScreen(x, y);
     g.position.set(Math.round(s.x), Math.round(s.y));
     g.zIndex = z * 10;
@@ -65,9 +65,9 @@ export class RoomView implements View {
       if (s.id === 'timofey') drawAnvil(g);
       if (s.id === 'nika') drawMapTable(g);
       if (s.id === 'seva') drawMailbag(g);
-      let npc: Graphics | null = null;
+      let npc: Figure | null = null;
       if (s.id !== 'scope' && s.id !== 'filin') {
-        npc = new Graphics();
+        npc = new Figure();
         this.place(npc, s.npc.x, s.npc.y, s.npc.x + s.npc.y);
       }
       this.furniture.push({ s, g, npc });
@@ -91,7 +91,7 @@ export class RoomView implements View {
         const r = residentById(f.s.id as ResidentId);
         // жители иногда поворачиваются
         const face = Math.sin(t * 0.4 + f.s.x * 3) > 0 ? 1 : -1;
-        drawPerson(f.npc.clear(), face, 0, false, r.coat, false, false);
+        f.npc.person(r.id, face, 0, false, r.coat);
       }
     }
 

@@ -7,6 +7,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 const urls = {
   ...(import.meta.glob('../art/examples/lamps/*_{on,off}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/examples/hero/hero_{idle,walk,light}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('../art/examples/people/*_{idle,walk}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 };
 const tex: Record<string, Texture> = {};
@@ -47,7 +48,13 @@ export function heroTex(moving: boolean, anim: number, lighting = false, t = 0):
   const w = idle?.width ?? 24;
   const light = lighting ? frames('hero_light', w) : undefined;
   if (light) return light[Math.floor(t * 8) % light.length];
-  const walk = frames('hero_walk', w);
+  return charTex('hero', moving, anim, w);
+}
+
+/** Кадр человечка по имени: name_idle (стоит) и name_walk (лента шагов). */
+export function charTex(name: string, moving: boolean, anim: number, w = 24): Texture | undefined {
+  const idle = tex[name + '_idle'];
+  const walk = frames(name + '_walk', idle?.width ?? w);
   if (moving && walk) return walk[Math.floor(anim * 8) % walk.length];
   return idle ?? walk?.[0];
 }
