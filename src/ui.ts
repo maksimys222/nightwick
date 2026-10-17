@@ -10,6 +10,7 @@ import type { Renderer } from './render';
 import { getVolume, setVolume, getMusicVolume, setMusicVolume, setMusic, pick, out } from './audio';
 import { settings, saveSettings, QUALITY_NAMES, type Quality } from './settings';
 import { SkyView } from './skyView';
+import { MenuScene, woodBoard } from './menuScene';
 import { CONSTELLATIONS } from './sky';
 
 /** Мини-игра на маслобойне: стрелка бегает по шкале, нужно поймать золотую зону. */
@@ -30,8 +31,11 @@ export class UI {
   private menuMode: 'main' | 'pause' = 'main';
   private press: PressGame | null = null;
   private sky = new SkyView(() => this.closeModal());
+  private scene = new MenuScene();
 
   constructor(private r: Renderer, private actions: MenuActions) {
+    $('menu').prepend(this.scene.canvas);
+    (document.querySelector('#menu .menu-box') as HTMLElement).style.setProperty('--wood', `url(${woodBoard()})`);
     addEventListener('keydown', (e) => {
       if (e.repeat) return;
       if (st.menu) { if (e.code === 'Escape' && this.menuMode === 'pause') this.closeMenu(); return; }
@@ -94,6 +98,7 @@ export class UI {
     st.menu = true;
     // позади главного меню теперь картина-сцена (лес, солнце, дупло) — живой фон не нужен
     st.menuBackdrop = false;
+    if (mode === 'main') this.scene.start(); else this.scene.stop();
     $('menu').hidden = false;
     $('menu').classList.toggle('pause', mode === 'pause');
     $('menu-title').textContent = mode === 'pause' ? 'Пауза' : 'Фонарщик';
@@ -122,6 +127,7 @@ export class UI {
   private closeMenu() {
     st.menu = false;
     st.menuBackdrop = false;
+    this.scene.stop();
     $('menu').hidden = true;
     st.holdLock = true;
   }
