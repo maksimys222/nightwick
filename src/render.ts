@@ -28,6 +28,8 @@ export interface Halo {
   /** 0..1 — масла почти нет, огонь «чихает». */
   low: number;
   size: number;
+  /** Сдвиг по экрану вбок, в пикселях (огонёк на шесте — не над точкой стояния). */
+  dx?: number;
 }
 
 /** То, что умеет сцена: мир, источники света, насколько темно, куда смотрит камера. */
@@ -231,7 +233,7 @@ export class Renderer {
     const m = this.moths.clear();
     hs.forEach((h, i) => {
       const p = toScreen(h.x, h.y);
-      const x = Math.round(p.x), y = Math.round(p.y) - h.lift;
+      const x = Math.round(p.x) + (h.dx ?? 0), y = Math.round(p.y) - h.lift;
       // живое пламя: лёгкое дыхание; когда масла мало — резкие провалы
       let f = 1 + 0.07 * Math.sin(t * 9 + h.id * 1.7) + 0.05 * Math.sin(t * 23 + h.id);
       if (h.low > 0 && Math.sin(t * 31 + h.id * 3) > 0.2) f *= 1 - 0.6 * h.low;
@@ -252,8 +254,8 @@ export class Renderer {
       burst.width = burst.height = 24 + (1 - h.flash) * 70;
       burst.tint = white;
       burst.alpha = h.flash * 0.7;
-      // два мотылька у стекла
-      for (let k = 0; k < 2; k++) {
+      // два мотылька у стекла (у огонька на шесте — нет)
+      for (let k = 0; k < (h.size >= 1 ? 2 : 0); k++) {
         const a = t * (2.1 + k * 0.9) + h.id * 2.3 + k * 3;
         const r = 6 + 3 * Math.sin(t * 1.3 + k + h.id);
         const mx = x + Math.cos(a) * r, my = y - 1 + Math.sin(a * 1.6) * r * 0.55;

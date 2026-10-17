@@ -6,7 +6,7 @@ import { Assets, Rectangle, Texture } from 'pixi.js';
 // сначала образцы (art/examples/…), потом картинки художника — они заменяют образцы с тем же именем
 const urls = {
   ...(import.meta.glob('../art/examples/lamps/*_{on,off}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
-  ...(import.meta.glob('../art/examples/hero/hero_{idle,walk}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
+  ...(import.meta.glob('../art/examples/hero/hero_{idle,walk,light}.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
   ...(import.meta.glob('../art/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>),
 };
 const tex: Record<string, Texture> = {};
@@ -41,10 +41,13 @@ export function frames(name: string, w: number): Texture[] | undefined {
   return strips[name];
 }
 
-/** Кадр фонарщика: стоит или идёт (4 кадра шага). */
-export function heroTex(moving: boolean, anim: number): Texture | undefined {
+/** Кадр фонарщика: стоит, идёт (4 кадра шага) или зажигает фонарь шестом (2 кадра). */
+export function heroTex(moving: boolean, anim: number, lighting = false, t = 0): Texture | undefined {
   const idle = tex.hero_idle;
-  const walk = frames('hero_walk', idle?.width ?? 24);
+  const w = idle?.width ?? 24;
+  const light = lighting ? frames('hero_light', w) : undefined;
+  if (light) return light[Math.floor(t * 8) % light.length];
+  const walk = frames('hero_walk', w);
   if (moving && walk) return walk[Math.floor(anim * 8) % walk.length];
   return idle ?? walk?.[0];
 }

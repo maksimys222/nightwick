@@ -15,8 +15,8 @@ export class Figure extends Container {
   }
 
   /** Фонарщик. Смотрит вправо, влево — отражённая картинка. */
-  hero(face: number, anim: number, moving: boolean, lantern: boolean) {
-    const t = heroTex(moving, anim);
+  hero(face: number, anim: number, moving: boolean, lantern: boolean, lighting = false, time = 0) {
+    const t = heroTex(moving, anim, lighting, time);
     this.g.clear();
     this.pic.visible = !!t;
     if (!t) { drawPerson(this.g, face, anim, moving, 0x2b3a67, true, lantern); return; }

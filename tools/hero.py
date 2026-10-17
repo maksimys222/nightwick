@@ -54,7 +54,8 @@ LEGS = {
 }
 
 
-def hero(frame, walk):
+def hero(frame, walk, light=False):
+    """light — поза «зажигаю фонарь»: шест поднят вперёд-вверх, огонёк у стекла фонаря."""
     G = Grid()
     legs = 'stand' if not walk else ('pass', 'step', 'pass', 'step')[frame]
     bob = 1 if walk and frame % 2 == 1 else 0      # в широком шаге тело ниже
@@ -62,13 +63,14 @@ def hero(frame, walk):
     u = lambda y: y + bob
 
     # шест за спиной: от плеча вверх-назад, на конце — крючок с огоньком
-    for k in range(12):
+    for k in (range(12) if not light else ()):
         x, y = 9 - k // 2, u(15) - k
         G.set(x, y, 'w'); G.set(x - 1, y, 'W')
-    tx, ty = 9 - 11 // 2, u(15) - 11            # верхушка шеста
-    G.set(tx - 1, ty - 1, 'm'); G.set(tx - 2, ty - 1, 'm'); G.set(tx - 2, ty, 'm')  # крючок
-    G.set(tx - 2, ty - 2, 'i'); G.set(tx - 2, ty - 3, 'y')                         # огонёк
-    G.set(tx - 2, ty - 4, 'Y' if frame % 2 == 0 else 'i')
+    if not light:
+        tx, ty = 9 - 11 // 2, u(15) - 11            # верхушка шеста
+        G.set(tx - 1, ty - 1, 'm'); G.set(tx - 2, ty - 1, 'm'); G.set(tx - 2, ty, 'm')  # крючок
+        G.set(tx - 2, ty - 2, 'i'); G.set(tx - 3, ty - 2, 'i'); G.set(tx - 2, ty - 3, 'y')  # огонёк
+        G.set(tx - 2, ty - 4, 'Y' if frame % 2 == 0 else 'i')
 
     # сумка с маслом на заднем боку
     G.row(u(19), 5, 'KKKK')
@@ -103,10 +105,15 @@ def hero(frame, walk):
         G.row(27 + i, x, text)
 
     # рука в перчатке и ручной фонарь
-    for y in range(15, 21): G.row(u(y), 15, 'cdK')
-    G.row(u(21), 15, 'qqK')
+    if light:
+        # рука поднята, фонарь висит на поясе
+        G.row(u(15), 15, 'cdK'); G.row(u(14), 16, 'cdK'); G.row(u(13), 17, 'qqK')
+        G.set(16, u(21), 'm'); G.set(16, u(22), 'm')
+    else:
+        for y in range(15, 21): G.row(u(y), 15, 'cdK')
+        G.row(u(21), 15, 'qqK')
+        G.set(14 + sway + 2, u(22), 'm')
     lx = 14 + sway
-    G.set(lx + 2, u(22), 'm')
     G.row(u(23), lx, 'KmmmK')
     G.row(u(24), lx, 'mYyym')
     G.row(u(25), lx, 'myyym')
@@ -131,6 +138,15 @@ def hero(frame, walk):
     G.row(u(6), 9, 'KhhhHK')
     G.row(u(7), 9, 'KrrrrK')
     G.row(u(8), 7, 'KKhhhhhhKK')
+    if light:
+        # шест вперёд-вверх, к стеклу фонаря; на конце огонёк и искорки
+        for k in range(1, 11):
+            x, y = 18 + k // 3, 13 - k
+            G.set(x, y, 'w'); G.set(x + 1, y, 'W')
+        G.set(22, 3, 'm'); G.set(22, 2, 'm')
+        G.set(22, 1, 'i'); G.set(23, 1, 'y'); G.set(22, 0, 'Y' if frame == 0 else 'y')
+        if frame == 1: G.set(20, 1, 'Y'); G.set(23, 0, 'i')
+        else: G.set(21, 0, 'i')
     return G
 
 
@@ -151,4 +167,5 @@ def save(name, grids):
 
 save('hero_idle', [hero(0, False)])
 save('hero_walk', [hero(i, True) for i in range(4)])
+save('hero_light', [hero(i, False, True) for i in range(2)])
 print('hero ok')

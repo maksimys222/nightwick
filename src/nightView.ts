@@ -12,7 +12,7 @@ import {
   drawHome, drawSleeper, drawFountain, drawStall, drawAnvil, drawEasel, drawSmoke,
 } from './draw';
 import type { View, Halo } from './render';
-import { art } from './sprites';
+import { art, heroTex } from './sprites';
 import { Figure } from './figure';
 import { BIOMES, GROUND, ROOFS } from './palette';
 
@@ -48,9 +48,22 @@ export class NightView implements View {
 
   darkAlpha = darkAlpha;
 
-  /** Ореолы вокруг стёкол горящих фонарей. */
+  /** Фонарь, который сейчас зажигают (держат E), — или null. */
+  private lightingLamp() {
+    if (!st.hold.key.startsWith('lamp') || st.hold.t <= 0) return null;
+    return this.w.lamps.find((l) => 'lamp' + l.id === st.hold.key) ?? null;
+  }
+
+  /** Ореолы вокруг стёкол горящих фонарей и огонёк на шесте фонарщика. */
   halos(): Halo[] {
     const out: Halo[] = [];
+    if (this.main && !st.cine && !st.nightOver && heroTex(false, 0)) {
+      const pl = st.player, lamp = this.lightingLamp();
+      const face = lamp ? Math.sign(toScreen(lamp.x + 0.5, lamp.y + 0.5).x - toScreen(pl.x, pl.y).x) || pl.face : pl.face;
+      // где огонёк на картинке 24×32: за спиной (−9.5) или поднят к фонарю (+10.5), почти у самого верха
+      out.push({ x: pl.x, y: pl.y, lift: 30, dx: (lamp ? 10.5 : -9.5) * face, tint: 0xffa040, id: -5,
+        flash: 0, low: 0, size: lamp ? 0.5 : 0.32 });
+    }
     for (const l of this.w.lamps) {
       const on = burning(l);
       if (on && !this.wasLit.has(l.id)) { this.wasLit.add(l.id); this.litAt.set(l.id, st.time); }
@@ -161,7 +174,10 @@ export class NightView implements View {
     const pl = st.player;
     const p = toScreen(pl.x, pl.y);
     if (playing) {
-      this.player.hero(pl.face, pl.anim, pl.moving, !st.nightOver);
+      // зажигает фонарь: поворачивается к нему и поднимает шест
+      const lamp = this.lightingLamp();
+      const face = lamp ? Math.sign(toScreen(lamp.x + 0.5, lamp.y + 0.5).x - p.x) || pl.face : pl.face;
+      this.player.hero(face, pl.anim, pl.moving, !st.nightOver, !!lamp, st.time);
       this.player.position.set(Math.round(p.x), Math.round(p.y));
       this.player.zIndex = (pl.x + pl.y) * 10 + 1;
     }
