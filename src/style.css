@@ -222,6 +222,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
   font: inherit; font-size: 22px; color: var(--ink); cursor: pointer;
   background: var(--panel); border: 2px solid var(--edge); padding: 8px 0;
 }
+.menu-ask { color: var(--warm); font-size: 18px; margin-bottom: 4px; }
 .menu-list button:hover { border-color: var(--warm); color: var(--warm); }
 .vol { display: flex; align-items: center; gap: 12px; justify-content: center; font-size: 18px; color: var(--ink); margin-bottom: 8px; }
 

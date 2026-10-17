@@ -211,8 +211,9 @@ export const starLit = (id: string) => st.stars.includes(id);
 /** Рядом горит звезда — значит, эту можно зажечь. */
 export const starReachable = (s: Star) => s.links.some(starLit);
 export const branchOpen = (b: Branch) => b === 'core' || hasResident(b);
+// звёзды вокруг Искры дешевле — первую можно зажечь уже после первой ночи
 export const starCost = (s: Star) =>
-  Math.ceil((6 + s.dist / 12) * (s.size === 'big' ? 1.8 : s.size === 'key' ? 3 : 1) * (1 + 0.05 * (st.stars.length - 1)));
+  Math.ceil((6 + s.dist / 12) * (s.size === 'big' ? 1.8 : s.size === 'key' ? 3 : 1) * (s.branch === 'core' ? 0.75 : 1) * (1 + 0.05 * (st.stars.length - 1)));
 
 /** null — можно зажечь, иначе причина. */
 export function starBlock(s: Star): string | null {
@@ -1079,8 +1080,8 @@ export function load(): boolean {
   st.dryNights = data.dryNights ?? 0;
   st.hasJournal = data.hasJournal ?? false;
   st.journal = data.journal ?? [];
-  if (st.seen.firstReturn && st.hasJournal && !st.journal.includes('sky')) { st.journal.push('sky'); st.journalNew = true; }
   st.journalNew = data.journalNew ?? false;
+  if (st.seen.firstReturn && st.hasJournal && !st.journal.includes('sky')) { st.journal.push('sky'); st.journalNew = true; }
   st.beacons = data.beacons ?? [];
   const k: string = data.known ?? '';
   for (let i = 0; i < k.length && i < st.known.length; i++) st.known[i] = k[i] === '1' ? 1 : 0;

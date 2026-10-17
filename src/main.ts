@@ -3,6 +3,7 @@ import '@fontsource/pixelify-sans/400.css';
 import './style.css';
 import { Application } from 'pixi.js';
 import { st, update, world, boot, resetSave, startNight, lampCap } from './game';
+import * as G from './game';
 import { playIntro } from './cinema';
 import { Renderer } from './render';
 import { UI } from './ui';
@@ -74,4 +75,5 @@ const step = (n = 1) => {
   }
   app.render();
 };
-Object.assign(window, { st, world, sim, step, renderer, ui, startNight, lampCap, playIntro });
+// отладка из консоли — только при разработке, в сборке для игроков этого нет
+if (import.meta.env.DEV) Object.assign(window, { st, world, sim, step, renderer, ui, startNight, lampCap, playIntro, G });

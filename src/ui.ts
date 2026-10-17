@@ -109,9 +109,19 @@ export class UI {
       this.closeMenu();
       if (wasMain) this.actions.start();
     } else if (m === 'new') {
-      if (this.actions.hasGame() && !confirm('Начать игру заново? Весь прогресс пропадёт.')) return;
+      // подтверждение прямо в меню: системное окно confirm() на сайтах с игрой (itch.io, VK Play) бывает заблокировано
+      if (this.actions.hasGame()) {
+        $('menu-main').innerHTML = '<div class="menu-ask">Начать заново? Весь прогресс пропадёт.</div>'
+          + '<button data-m="new-yes">Да, начать заново</button><button data-m="new-no">Отмена</button>';
+        return;
+      }
       this.closeMenu();
       this.actions.newGame();
+    } else if (m === 'new-yes') {
+      this.closeMenu();
+      this.actions.newGame();
+    } else if (m === 'new-no') {
+      this.openMenu(this.menuMode);
     } else if (m === 'guide') {
       this.closeMenu();
       st.modal = { kind: 'guide' };
