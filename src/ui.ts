@@ -1,11 +1,11 @@
 // Интерфейс поверх игры — обычный HTML (так текст чёткий и легко менять).
 
 import {
-  st, world, UPGRADES, cost, buyBlock, buy, currentAct, hint, lumenRate, nextLine, claim, skipCine, save, finishPress, startNight,
-  questVisible, questState, readyQuests, clickWorld, type UpId,
+  st, UPGRADES, cost, buyBlock, buy, currentAct, hint, lumenRate, nextLine, claim, skipCine, save, finishPress, startNight,
+  questVisible, questState, readyQuests, clickWorld, chooseBoon, districtOpen, BOONS, type UpId, type BoonId,
 } from './game';
 import { QUESTS, JOURNAL, residentById, type ResidentId } from './story';
-import { DISTRICT_NAMES } from './map';
+import { DISTRICT_NAMES, DISTRICTS, DISTRICT_INFO, type District } from './map';
 import type { Renderer } from './render';
 import { getVolume, setVolume, getMusicVolume, setMusicVolume, setMusic, pick, out } from './audio';
 import { settings, saveSettings, QUALITY_NAMES, type Quality } from './settings';
@@ -21,12 +21,14 @@ export interface MenuActions { hasGame: () => boolean; start: () => void; newGam
 
 const $ = (id: string) => document.getElementById(id)!;
 const fmt = (n: number) => (n < 1000 ? Math.floor(n).toString() : n < 1e6 ? (n / 1000).toFixed(1) + 'K' : (n / 1e6).toFixed(2) + 'M');
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class UI {
   private acc = 1;
   private modalKey = '';
   private greeting = '';
+  /** Новая ночь: экран на миг темнеет и плавно открывается (пока строится новый лес). */
+  private nightFade = 0;
+  private worldVer = st.worldVer;
 
   private menuMode: 'main' | 'pause' = 'main';
   private press: PressGame | null = null;
@@ -44,6 +46,7 @@ export class UI {
       const go = e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter';
       if (st.dialog.length && go) { nextLine(); e.preventDefault(); return; }
       if (st.modal?.kind === 'press' && go) { this.pressHit(); e.preventDefault(); return; }
+      if (st.modal?.kind === 'boon') return;
       if (st.modal && (e.code === 'Escape' || e.code === 'KeyE')) this.closeModal();
     });
     // ЛКМ по спелому подсолнуху рядом — сорвать
@@ -74,15 +77,19 @@ export class UI {
     $('modal-close').addEventListener('click', () => this.closeModal());
     $('modal').addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
-      if (el.id === 'modal') return this.closeModal();
+      // дар из тайника надо выбрать — мимо окна не закрыть
+      if (el.id === 'modal') return st.modal?.kind === 'boon' ? undefined : this.closeModal();
+      const boon = el.closest<HTMLElement>('[data-boon]');
+      if (boon) { chooseBoon(boon.dataset.boon as BoonId); return; }
       if (st.modal?.kind === 'press' && el.closest('.press')) return this.pressHit();
       const up = el.closest<HTMLElement>('[data-up]');
       if (up) { buy(up.dataset.up as UpId); this.renderModal(); }
       const go = el.closest<HTMLElement>('[data-start]');
       if (go) {
-        const at = go.dataset.start === 'home' ? null : Number(go.dataset.start);
+        const d = go.dataset.start as District;
+        if (!districtOpen(d)) return;
         this.closeModal();
-        startNight(at);
+        startNight(d);
         return;
       }
       const q = el.closest<HTMLElement>('[data-claim]');
@@ -187,6 +194,7 @@ export class UI {
   }
 
   private closeModal() {
+    if (st.modal?.kind === 'boon') return;
     this.press = null;
     st.modal = null;
     st.holdLock = true;
@@ -233,13 +241,20 @@ export class UI {
       if (left) body += `<div class="j-empty">Ещё ${left} ${left === 1 ? 'страница пуста' : left < 5 ? 'страницы пусты' : 'страниц пусты'}… Узнаю больше — допишу.</div>`;
       body += '</div>';
     } else if (m.kind === 'start') {
-      title = 'Откуда начать ночь?';
-      sub = 'Зажжённые маяки горят каждую ночь — от них можно начинать.';
-      body = `<button class="upg" data-start="home"><div class="upg-top"><span>Дом</span></div><div class="upg-desc">У порога мастерской</div></button>`
-        + st.beacons.map((id) => {
-          const l = world.lamps[id];
-          return `<button class="upg" data-start="${id}"><div class="upg-top"><span>${l.name}</span></div><div class="upg-desc">${DISTRICT_NAMES[l.district]}</div></button>`;
-        }).join('');
+      title = 'Куда идти этой ночью?';
+      sub = 'Маяк одного края открывает дорогу в следующий. Чем дальше — тем больше теней, но и Света.';
+      body = DISTRICTS.map((d, i) => {
+        const open = districtOpen(d), done = st.cleared.includes(d);
+        const desc = open ? DISTRICT_INFO[d] : `Откроется, когда зажжёшь маяк: ${DISTRICT_NAMES[DISTRICTS[i - 1]]}`;
+        return `<button class="upg" data-start="${d}" ${open ? '' : 'disabled'}>
+          <div class="upg-top"><span>${DISTRICT_NAMES[d]}</span><span class="upg-lvl">${done ? '✓ маяк горит' : open ? '' : '🔒'}</span></div>
+          <div class="upg-desc">${desc}</div></button>`;
+      }).join('');
+    } else if (m.kind === 'boon') {
+      title = 'Тайник';
+      sub = 'Внутри — три дара. Возьми один: он поможет до утра.';
+      body = m.options.map((b) => `<button class="upg boon" data-boon="${b}" style="--c:${BOONS[b].color}">
+          <div class="upg-top"><span>${BOONS[b].name}</span></div><div class="upg-desc">${BOONS[b].text}</div></button>`).join('');
     } else if (m.kind === 'press') {
       if (!this.press) this.press = this.newPress();
       title = 'Маслобойня';
@@ -264,7 +279,8 @@ export class UI {
     }
     $('modal-title').textContent = title;
     $('modal-sub').textContent = sub;
-    $('modal-lumens').textContent = m.kind === 'guide' || m.kind === 'press' || m.kind === 'start' ? '' : `Свет: ${fmt(st.lumens)}`;
+    $('modal-lumens').textContent = m.kind === 'guide' || m.kind === 'press' || m.kind === 'start' || m.kind === 'boon' ? '' : `Свет: ${fmt(st.lumens)}`;
+    $('modal-close').hidden = m.kind === 'boon';
     $('modal-body').innerHTML = body;
     $('modal').classList.toggle('book', m.kind === 'guide');
     if (m.kind === 'press') this.drawPress();
@@ -341,7 +357,9 @@ export class UI {
     $('sky').hidden = !c?.sky && !st.menuBackdrop;
     $('sky').dataset.state = c?.sky ?? (st.menuBackdrop ? 'menu' : '');
     $('skip').hidden = !c;
-    ($('fade') as HTMLElement).style.opacity = String(c ? c.fade : 0);
+    if (st.worldVer !== this.worldVer) { this.worldVer = st.worldVer; this.nightFade = 1; }
+    else this.nightFade = Math.max(0, this.nightFade - dt * 1.4);
+    ($('fade') as HTMLElement).style.opacity = String(Math.max(c ? c.fade : 0, this.nightFade));
 
     // пузырь Искры
     const say = st.sparkSay;
@@ -405,9 +423,12 @@ export class UI {
       ($('timer-fill') as HTMLElement).style.width = `${k * 100}%`;
       $('timer').classList.toggle('low', st.lantern < 10 && !st.inLampLight);
       $('timer').classList.toggle('rest', st.inLampLight);
-      $('timer-text').textContent = clock(st.lantern);
+      // стоишь в темноте — ночь замерла
+      $('timer').classList.toggle('still', !st.inLampLight && st.flow === 0 && !st.nightOver && !st.cine);
+      $('timer-text').textContent = String(Math.ceil(st.lantern));
     }
     $('goal').textContent = hint();
+    ($('hit') as HTMLElement).style.opacity = String(st.hit);
 
     // подсказка над игроком и шкала удержания
     const a = currentAct();
@@ -436,6 +457,6 @@ export class UI {
     $('guide-btn').hidden = !st.hasJournal;
     $('journal-new').hidden = !st.journalNew;
     if (st.modal?.kind === 'sky') this.sky.refresh();
-    else if (st.modal && st.modal.kind !== 'press') this.renderModal();
+    else if (st.modal && st.modal.kind !== 'press' && st.modal.kind !== 'boon') this.renderModal();
   }
 }

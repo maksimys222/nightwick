@@ -13,7 +13,7 @@ import { makePlaza } from './plaza';
 import { makeLightTexture, makeHaloTexture, drawSpark } from './draw';
 import { frames } from './sprites';
 import { settings } from './settings';
-import { NightView } from './nightView';
+import { NightView, type Glint } from './nightView';
 import { RoomView } from './roomView';
 
 /** Цвет ночи: глубокий синий, а не чёрный — в темноте всё равно угадываются цвета. */
@@ -45,6 +45,8 @@ export interface View {
   /** Где летают искорки (их рисует Renderer поверх мира, с плавными координатами). */
   sparks(): { x: number; y: number; alpha: number }[];
   halos(): Halo[];
+  /** Светящиеся точки поверх тьмы (необязательно). */
+  glints?(): Glint[];
   update(): void;
 }
 
@@ -78,12 +80,16 @@ export class Renderer {
   private haloLayer = new Container();
   private pointer = new Graphics();
   private moths = new Graphics();
+  private glintLayer = new Container();
+  private glintG = new Graphics();
+  /** Карта вылазки, для которой построена ночная сцена. */
+  private nightVer = st.worldVer;
 
   constructor(private app: Application) {
     this.worldRoot.addChild(this.cam);
     this.darkRoot.addChild(this.darkFill, this.darkCam);
     app.stage.addChild(this.worldSprite, this.darkSprite, this.floatLayer);
-    this.floatLayer.addChild(this.haloLayer, this.moths, this.pointer);
+    this.floatLayer.addChild(this.haloLayer, this.glintLayer, this.glintG, this.moths, this.pointer);
     this.resize();
   }
 
@@ -146,6 +152,14 @@ export class Renderer {
   }
 
   frame(dt: number) {
+    // новая ночь — новый лес: перестраиваем ночную сцену
+    if (this.nightVer !== st.worldVer) {
+      this.nightVer = st.worldVer;
+      const old = this.views.night;
+      this.views.night = new NightView(world, true);
+      if (this.current === 'night') this.current = null;
+      old.root.destroy({ children: true });
+    }
     if (this.current !== this.sceneNow) this.switchView();
     const v = this.view;
 
@@ -230,6 +244,7 @@ export class Renderer {
     this.floatLayer.scale.set(this.scale);
     this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
     this.drawHalos(settings.quality === 'low' ? [] : v.halos(), t);
+    this.drawGlints(v.glints?.() ?? []);
     // прыгающая стрелка над фонарём, о котором говорит Искра
     const g = this.pointer.clear();
     const shown = this.shownLamp();
@@ -271,6 +286,29 @@ export class Renderer {
     const r = this.app.renderer;
     r.render({ container: this.worldRoot, target: this.worldRT, clear: true, clearColor: [0, 0, 0, 1] });
     r.render({ container: this.darkRoot, target: this.darkRT, clear: true, clearColor: [0, 0, 0, 0] });
+  }
+
+  /** Глаза теней и блеск тайников: яркий пиксель и мягкое свечение вокруг. */
+  private drawGlints(gs: Glint[]) {
+    const g = this.glintG.clear();
+    while (this.glintLayer.children.length < gs.length) {
+      const s = new Sprite(this.haloTex);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      this.glintLayer.addChild(s);
+    }
+    const kids = this.glintLayer.children as Sprite[];
+    kids.forEach((s, i) => { s.visible = i < gs.length && settings.quality !== 'low'; });
+    gs.forEach((q, i) => {
+      const p = toScreen(q.x, q.y);
+      const x = Math.round(p.x + q.dx), y = Math.round(p.y - q.lift);
+      g.rect(x, y, q.size, q.size).fill({ color: mix(q.color, 0xffffff, 0.45), alpha: q.alpha });
+      const s = kids[i];
+      s.position.set(x + q.size / 2, y + q.size / 2);
+      s.width = s.height = 10 * q.size;
+      s.tint = q.color;
+      s.alpha = q.alpha * 0.7;
+    });
   }
 
   /**

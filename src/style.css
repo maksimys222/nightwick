@@ -85,6 +85,13 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #timer.low #timer-fill { background: #e05040; }
 #timer.rest #timer-fill { background: linear-gradient(#e8fff0, #8ad8a0); }
 #timer.rest .t-lbl::after { content: ' · отдых у фонаря'; color: #8ad8a0; }
+#timer.still .t-lbl::after { content: ' · ночь замерла'; color: #9ad0ff; }
+#timer.still #timer-fill { filter: saturate(0.4) brightness(0.85); }
+/* удар тени: экран на миг обводится холодной тьмой */
+#hit { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(40, 0, 60, 0) 45%, rgba(70, 10, 90, 0.75) 100%); }
+.upg.boon { border-left: 6px solid var(--c); }
+.upg.boon .upg-top span { color: var(--c); }
 #timer.low #timer-text { color: var(--bad); animation: pulse 0.5s infinite alternate; }
 #goal { padding: 8px 18px; font-size: 18px; text-align: center; width: 100%; }
 

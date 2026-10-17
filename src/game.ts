@@ -1,9 +1,14 @@
 // Состояние и правила игры. Здесь нет рисования — только цифры и логика.
 //
-// Цикл: мастерская → ночная смена (пока горит ручной фонарь) → снова мастерская.
-// Свет, улучшения, жители и заказы остаются навсегда; фонари, масло и урожай — только на одну ночь.
+// Цикл: мастерская → вылазка в ночной лес → снова мастерская.
+// Каждую ночь лес новый (map.ts). Цель вылазки — дойти до потухшего маяка и зажечь его.
+// Главное правило: ночь движется, только когда движешься ты. Стоишь — тени и время замирают.
+// Огонь ручного фонаря тратится на шаги по темноте; в тени — бродят тени Гасителя.
+// Свет, улучшения, жители и пройденные маяки остаются навсегда; фонари, масло, урожай и дары — на одну ночь.
 
-import { W, H, BRIDGE, PATH, STONE, makeWorld, homeDoor, riverX, type Lamp, type LampKind, type Flower, type House } from './map';
+import {
+  W, H, BRIDGE, PATH, STONE, makeRun, homeDoor, DISTRICTS, DISTRICT_NAMES, type Lamp, type LampKind, type Flower, type House, type Chest, type District,
+} from './map';
 import { screenDirToTile } from './iso';
 import { RW, RH, STATIONS, FIREPLACE, BOARD, DOOR, SPAWN, stationCenter, type Station, DECOR } from './room';
 import {
@@ -13,11 +18,11 @@ import {
 import * as sfx from './audio';
 import { STARS, FX, CONSTELLATIONS, CONSTELLATION_BONUS, starById, type Stat, type Fx, type Star, type Branch } from './sky';
 
-export const world = makeWorld();
+export const world = makeRun(1, 'street');
 
 // ---------- улучшения ----------
 
-export type UpId = 'bridge' | 'map' | 'compass' | 'helper' | 'autopress';
+export type UpId = 'staff' | 'map' | 'compass' | 'helper' | 'autopress';
 
 export interface Upgrade {
   id: UpId; station: StationId; name: string; desc: string;
@@ -27,7 +32,7 @@ export interface Upgrade {
 
 /** Особые вещи у жителей. Всё, что просто «прибавляет цифры», — на звёздном небе (sky.ts). */
 export const UPGRADES: Upgrade[] = [
-  { id: 'bridge', station: 'timofey', name: 'Починить мост', desc: 'Тимофей починит мост через реку — откроется дорога в деревню', base: 60, mult: 1.0, max: 1 },
+  { id: 'staff', station: 'timofey', name: 'Окованный шест', desc: 'Тимофей обобьёт шест железом — тени отнимают вдвое меньше огня', base: 60, mult: 1.0, max: 1 },
   { id: 'map', station: 'nika', name: 'Карта улицы', desc: 'В начале ночи видно, где стоят все фонари', base: 90, mult: 1.0, max: 1 },
   { id: 'compass', station: 'nika', name: 'Компас', desc: 'Стрелка показывает на ближайший тёмный фонарь', base: 120, mult: 1.0, max: 1 },
   {
@@ -79,7 +84,34 @@ export interface Cine {
   homeGlow: boolean;
   actors: Actor[];
 }
-export type Modal = { kind: 'shop'; station: StationId } | { kind: 'sky' } | { kind: 'board' } | { kind: 'guide' } | { kind: 'press' } | { kind: 'start' } | null;
+export type Modal = { kind: 'shop'; station: StationId } | { kind: 'sky' } | { kind: 'board' } | { kind: 'guide' } | { kind: 'press' } | { kind: 'start' }
+  | { kind: 'boon'; options: BoonId[] } | null;
+
+// ---------- дары из тайников (на одну ночь) ----------
+
+export type BoonId = 'flask' | 'fire' | 'rich' | 'brave' | 'quiet' | 'swift' | 'thrift' | 'bloom' | 'glow' | 'stash';
+export const BOONS: Record<BoonId, { name: string; text: string; color: string }> = {
+  flask: { name: 'Фляга масла', text: '+12 масла прямо сейчас', color: '#e0a040' },
+  fire: { name: 'Уголёк', text: '+15 огня в ручном фонаре', color: '#ff8a3a' },
+  rich: { name: 'Щедрый свет', text: 'Фонари дают на 50% больше Света до утра', color: '#ffd23a' },
+  brave: { name: 'Отвага', text: 'Тени отнимают вдвое меньше огня', color: '#ff7a7a' },
+  quiet: { name: 'Тихий шаг', text: 'Тени замечают тебя вдвое ближе', color: '#9ad0ff' },
+  swift: { name: 'Лёгкие ноги', text: 'Ходишь на 20% быстрее', color: '#8affc8' },
+  thrift: { name: 'Бережливость', text: 'Огонь в темноте тратится на 30% медленнее', color: '#ffb0c8' },
+  bloom: { name: 'Солнечное семечко', text: 'Подсолнухи растут вдвое быстрее', color: '#b8e05a' },
+  glow: { name: 'Светлячки', text: 'Искра светит вдвое шире', color: '#c8ffb0' },
+  stash: { name: 'Заначка Гасителя', text: '+25 Света в фонарь', color: '#b8a0ff' },
+};
+export const hasBoon = (b: BoonId) => st.boons.includes(b);
+
+/** Тень Гасителя: бродит в темноте, сквозь деревья; к фонарщику — бросается, свет её не пускает. */
+export interface Shade {
+  x: number; y: number; tx: number; ty: number;
+  chase: boolean;
+  /** > 0 — рассеялась и вернётся через столько секунд ночи. */
+  gone: number;
+  anim: number; face: number;
+}
 
 export const st = {
   // --- навсегда (сохраняется) ---
@@ -103,14 +135,25 @@ export const st = {
   hasJournal: false,
   journal: [] as PageId[],
   journalNew: false,
-  /** Зажжённые маяки (id фонарей): они горят каждую ночь, от них можно начинать. */
-  beacons: [] as number[],
+  /** Районы, где маяк уже зажжён: каждый открывает дорогу в следующий. */
+  cleared: [] as District[],
   /** Какие тайлы улицы уже видели (1) — остальные скрыты полной тьмой. */
   known: new Uint8Array(W * H),
 
   // --- текущая сцена ---
   scene: 'room' as Scene,
-  /** Секунды до того, как погаснет ручной фонарь. */
+  /** Какая сейчас вылазка. */
+  biome: 'street' as District,
+  /** Карта вылазки пересоздана — картинку надо перестроить. */
+  worldVer: 0,
+  shadows: [] as Shade[],
+  /** Дары тайников на эту ночь. */
+  boons: [] as BoonId[],
+  /** Вспышка от удара тени (1 → 0). */
+  hit: 0,
+  /** Идёт ли сейчас ночь: 1 — фонарщик идёт или что-то делает, 0 — стоит, и всё замерло. */
+  flow: 0,
+  /** Огонь ручного фонаря: тратится, когда идёшь по темноте (1 — на секунду ходьбы). */
   lantern: 0,
   lanternMax: 1,
   /** Главное меню открыто — позади показываем дневную площадь. */
@@ -176,13 +219,6 @@ export const KINDS: Record<LampKind, KindInfo> = {
   beacon: { name: 'маяк', cap: 1, drain: 0, radius: 1.6, lumen: 1, cost: 15, hold: 2.5, tint: 0xfff0c8 },
 };
 
-/** Ось моста: самая восточная клетка (у неё стоит табличка «мост сломан»). */
-const bridgeEnd = (() => {
-  let best: { x: number; y: number } | null = null;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
-    if (world.ground[y * W + x] === BRIDGE && (!best || x > best.x)) best = { x, y };
-  return best;
-})();
 
 // ---------- звёздное небо ----------
 
@@ -246,7 +282,7 @@ export function lightStar(id: string) {
 }
 
 // ---------- формулы ----------
-export const nightLength = () => 40 + 10 * lv('tank') + (has('kite') ? 3 * st.movedIn.length : 0);
+export const nightLength = () => 50 + 10 * lv('tank') + (has('kite') ? 3 * st.movedIn.length : 0);
 const startOil = () => Math.floor(12 + 8 * lv('can') + (has('bread') ? 2 * st.movedIn.length : 0));
 /** На дорогах с «Короткими тропами» — быстрее. */
 const speed = () => {
@@ -257,16 +293,17 @@ const speed = () => {
     if (has('coat') && st.lantern < 15) k *= 1.25;
     if (has('sprint') && st.lanternMax - st.lantern < 10) k *= 2;
   }
+  if (hasBoon('swift')) k *= 1.2;
   return 3.2 * k;
 };
 const lanternR = () => 2.2 + 0.5 * lv('lens');
-const growTime = () => 6 / Math.pow(1.4, lv('fert'));
+const growTime = () => 6 / Math.pow(1.4, lv('fert')) / (hasBoon('bloom') ? 2 : 1);
 const seedsPer = () => 3 + Math.floor(lv('seeds'));
 const holdMul = () => Math.pow(0.75, lv('ladder'));
 export const lampCap = (l: Lamp) => KINDS[l.kind].cap * (l.kind === 'oil' || l.kind === 'gas' || l.kind === 'stubborn' ? 1 + 0.5 * lv('lampTank') : 1);
 const drain = () => 0.3 * Math.pow(0.8, lv('wick'));
 const lampR = () => 3.2 + 0.4 * lv('glass');
-const lumenPer = () => 0.5 * (1 + 0.25 * lv('rumor')) * (1 + CONSTELLATION_BONUS * doneConstellations().length);
+const lumenPer = () => 0.5 * (1 + 0.25 * lv('rumor')) * (1 + CONSTELLATION_BONUS * doneConstellations().length) * (hasBoon('rich') ? 1.5 : 1);
 const firstLightBonus = () => (2 + lv('fame')) * (has('loud') ? 2 : 1);
 /** Сколько Света теряется, если фонарь погас не дома. */
 const lostShare = () => (has('grip') ? 1 / 3 : 0.5);
@@ -309,7 +346,7 @@ export function lights(): Light[] {
   // ручной фонарь к концу смены тускнеет
   const k = st.nightOver ? 0.5 : 0.6 + 0.4 * Math.min(1, st.lantern / 10);
   const out: Light[] = [{ x: st.player.x, y: st.player.y, r: lanternR() * k, id: -1 }];
-  out.push({ x: st.spark.x, y: st.spark.y, r: has('moth') ? 2.4 : 1.1, id: -2 });
+  out.push({ x: st.spark.x, y: st.spark.y, r: (has('moth') ? 2.4 : 1.1) * (hasBoon('glow') ? 2 : 1), id: -2 });
   if (world.home) { const d = homeDoor(world.home); out.push({ x: d.x, y: d.y - 0.6, r: has('oven') ? 6 : 3, id: -3 }); }
   for (const l of world.lamps) if (burning(l)) out.push({ x: l.x + 0.5, y: l.y + 0.5, r: lampRadius(l), id: l.id, tint: KINDS[l.kind].tint });
   return out;
@@ -487,7 +524,7 @@ function direction(fx: number, fy: number, tx: number, ty: number) {
 
 /** В начале ночи Искра намекает, где искать жителя; после 4 пустых ночей — ведёт стрелкой. */
 function residentHint() {
-  const left = world.houses.filter((h) => !st.met.includes(h.rid) && (st.up.bridge || h.x > riverX(h.y)));
+  const left = world.houses.filter((h) => !st.met.includes(h.rid));
   if (!left.length) return;
   const s = world.start;
   const h = left.sort((a, b) => Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y))[0];
@@ -501,35 +538,41 @@ function residentHint() {
 
 // ---------- смена сцен ----------
 
-/** Свободная точка рядом с фонарём (маяком), чтобы встать возле него. */
-function spotNear(l: Lamp) {
-  for (const [dx, dy] of [[0.5, 1.6], [1.6, 0.5], [-0.6, 0.5], [0.5, -0.6], [1.6, 1.6]]) {
-    const x = l.x + dx, y = l.y + dy;
-    if (free(x, y)) return { x, y };
+/** Можно ли пойти в этот район: первый открыт сразу, остальные — после маяка предыдущего. */
+export const districtOpen = (d: District) => { const i = DISTRICTS.indexOf(d); return i === 0 || st.cleared.includes(DISTRICTS[i - 1]); };
+
+/** Сколько теней в лесу: в дальних районах больше, и с каждой ночью Гаситель злится сильнее. */
+const shadeCount = () => [3, 5, 7, 9][DISTRICTS.indexOf(st.biome)] + Math.min(3, Math.floor(st.nights / 4));
+
+/** Случайная точка в темноте подальше от фонарщика (тени ходят и сквозь лес). */
+function darkSpot(minDist: number) {
+  const p = st.player;
+  for (let i = 0; i < 80; i++) {
+    const x = 2 + Math.random() * (W - 4), y = 2 + Math.random() * (H - 4);
+    if (Math.hypot(x - p.x, y - p.y) >= minDist && !safeFromShades(x, y)) return { x, y };
   }
-  return { x: l.x + 0.5, y: l.y + 1.6 };
+  return { x: W - 4, y: H / 2 };
 }
 
-/** Начать ночь у дома или у зажжённого маяка (id фонаря). */
-export function startNight(at: number | null = null) {
+/** Начать ночь: новый лес в выбранном районе. */
+export function startNight(biome: District = 'street') {
+  st.biome = biome;
   st.scene = 'night';
   st.nights++;
+  Object.assign(world, makeRun(st.nights, biome, { unmet: RESIDENTS.map((r) => r.id).filter((id) => !st.met.includes(id)) }));
+  st.worldVer++;
+  st.known.fill(0);
+  st.boons = [];
+  st.hit = 0;
   st.nightOver = false;
   st.lanternMax = st.lantern = nightLength();
   st.oil = startOil();
   st.seeds = 0;
   st.carry = has('news') ? 5 : 0;
   st.night = emptyNight();
-  for (const l of world.lamps) {
-    const beacon = st.beacons.includes(l.id);
-    l.oil = beacon ? 1 : 0;
-    l.lit = l.everLit = beacon;
-    l.kindled = 0;
-  }
   for (const f of world.flowers) { f.stage = has('sprouts') ? 1 : 0; f.grow = 0; }
   st.spareUsed = false;
-  const b = at !== null ? world.lamps[at] : null;
-  const pos = b ? spotNear(b) : world.start;
+  const pos = world.start;
   st.player = { x: pos.x, y: pos.y, face: 1, anim: 0, moving: false };
   const pr = nearestPress(pos.x, pos.y);
   st.helpers = Array.from({ length: st.up.helper + (has('extrahelper') ? 1 : 0) }, (_, i) => ({
@@ -549,7 +592,17 @@ export function startNight(at: number | null = null) {
       for (let x = Math.floor(cx - r); x <= cx + r; x++)
         if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) st.known[y * W + x] = 1;
   };
-  if (has('starmap')) for (const id of st.beacons) reveal(world.lamps[id].x + 0.5, world.lamps[id].y + 0.5, 7);
+  // привал видно сразу; «Звёздная карта» — вся тропа до маяка
+  if (world.home) reveal(world.home.x + 1, world.home.y + 1.5, 4.5);
+  if (has('starmap')) {
+    for (const t of world.trail) reveal(t.x + 0.5, t.y + 0.5, 1.2);
+    const g = world.lamps[world.goal];
+    reveal(g.x + 0.5, g.y + 0.5, 3.5);
+  }
+  st.shadows = Array.from({ length: shadeCount() }, () => {
+    const s = darkSpot(16);
+    return { x: s.x, y: s.y, tx: s.x, ty: s.y, chase: false, gone: 0, anim: Math.random() * 9, face: 1 };
+  });
   if (has('peek')) {
     const dark = world.lamps.filter((l) => !l.lit).sort((a, b) => Math.hypot(a.x - pos.x, a.y - pos.y) - Math.hypot(b.x - pos.x, b.y - pos.y));
     for (const l of dark.slice(0, 3)) reveal(l.x + 0.5, l.y + 0.5, 2);
@@ -558,6 +611,27 @@ export function startNight(at: number | null = null) {
   st.sparkSay = { text: '', t: 0 };
   sfx.light();
   if (st.nights > 1) residentHint();
+}
+
+/** Маяк зажжён — вылазка удалась: большой бонус Света, весь Свет цел, открыт следующий район. */
+function winRun(l: Lamp) {
+  const i = DISTRICTS.indexOf(st.biome);
+  const bonus = Math.round((30 + 25 * i) * lumenPer() * 2 * (has('mail') ? 1.2 : 1));
+  st.carry += bonus;
+  st.night.lumens += bonus;
+  st.night.beacon = st.biome;
+  const first = !st.cleared.includes(st.biome);
+  if (first) st.cleared.push(st.biome);
+  unlockPage('beacons');
+  sfx.goal();
+  st.nightOver = true;
+  st.hold.key = '';
+  const next = DISTRICTS[i + 1];
+  const text = first && next
+    ? `${l.name} горит! Его свет видно за лесом… Теперь можно идти дальше: ${DISTRICT_NAMES[next]}. И ещё +${bonus} Света!`
+    : `${l.name} горит! Тени разбежались. +${bonus} Света — донесём домой целиком.`;
+  st.events.push(`${l.name} зажжён!`);
+  say([{ who: SPARK, text }], () => goHome(true));
 }
 
 function endNight() {
@@ -646,32 +720,40 @@ function ignite(l: Lamp) {
   const n = st.night.lit.length;
   if (has('chain') && n % 5 === 0) { bonus += 10; st.events.push('Сарафанное радио: +10 Света'); }
   if (has('chalk') && newKind) bonus += 5;
-  if (has('rhyme') && n % 4 === 0) { addTime(5); st.events.push('Считалочка: ночь длиннее на 5 секунд'); }
+  if (has('rhyme') && n % 4 === 0) { addTime(5); st.events.push('Считалочка: +5 огня'); }
   st.carry += bonus;
   st.night.lumens += bonus;
-  if (l.kind === 'beacon' && !st.beacons.includes(l.id)) {
-    st.beacons.push(l.id);
-    unlockPage('beacons');
-    st.events.push(`${l.name} зажжён! Теперь ночь можно начинать отсюда.`);
-    sfx.goal();
-    save();
-  }
+  if (l.id === world.goal) winRun(l);
 }
 
-/** Маяк отправляет собранный Свет домой (его уже не потеряешь). */
-/** Продлить ночь (полоска сверху тоже растёт). */
+/** Добавить огня (полоска сверху тоже растёт). */
 function addTime(sec: number) {
   st.lantern += sec;
   st.lanternMax = Math.max(st.lanternMax, st.lantern);
 }
 
-function bank() {
-  const n = Math.floor(st.carry * (has('mail') ? 1.2 : 1));
-  st.lumens += n;
-  st.carry = 0;
-  st.events.push(`Маяк отправил домой ${n} Света`);
+/** Открыть тайник: три случайных дара на выбор. */
+function openChest(c: Chest) {
+  c.open = true;
+  const all = (Object.keys(BOONS) as BoonId[]).filter((b) => !st.boons.includes(b));
+  const options: BoonId[] = [];
+  while (options.length < 3 && all.length) options.push(all.splice(Math.floor(Math.random() * all.length), 1)[0]);
+  sfx.goal();
+  unlockPage('chests');
+  st.modal = { kind: 'boon', options };
+}
+
+/** Игрок выбрал дар из тайника. */
+export function chooseBoon(b: BoonId) {
+  if (st.modal?.kind !== 'boon' || !st.modal.options.includes(b)) return;
+  st.boons.push(b);
+  if (b === 'flask') st.oil += 12;
+  if (b === 'fire') addTime(15);
+  if (b === 'stash') { st.carry += 25; st.night.lumens += 25; }
+  st.events.push(`Дар: ${BOONS[b].name}`);
   sfx.buy();
-  save();
+  st.modal = null;
+  st.holdLock = true;
 }
 
 function harvest(f: Flower) {
@@ -711,7 +793,7 @@ export function currentAct(): Act | null {
   if (st.scene === 'room') {
     consider(0.3, DOOR.y + 0.5, 1.4, () => ({
       key: 'door', label: 'Выйти в ночь', time: 0.5, ok: true,
-      run: () => { if (st.beacons.length) st.modal = { kind: 'start' }; else startNight(); },
+      run: () => { if (st.cleared.length) st.modal = { kind: 'start' }; else startNight('street'); },
     }));
     consider(BOARD.x + 0.5, 0.3, 1.6, () => {
       const n = readyQuests();
@@ -733,11 +815,9 @@ export function currentAct(): Act | null {
   for (const l of world.lamps) {
     consider(l.x + 0.5, l.y + 0.5, l.kind === 'beacon' ? 1.6 : 1.35, () => lampAct(l, hm));
   }
-  if (bridgeEnd && !st.up.bridge) {
-    consider(bridgeEnd.x + 1.5, bridgeEnd.y + 0.5, 1.6, () => {
-      tip('bridge');
-      return { key: 'bridge', label: 'Мост', time: 1, ok: false, why: 'Мост сломан — его починит кузнец', run: () => {} };
-    });
+  for (const c of world.chests) {
+    if (c.open) continue;
+    consider(c.x + 0.5, c.y + 0.5, 1.3, () => ({ key: `chest${c.x},${c.y}`, label: 'Открыть тайник', time: 0.8, ok: true, run: () => openChest(c) }));
   }
   for (const f of world.flowers) {
     if (f.stage !== 3) continue;
@@ -748,7 +828,7 @@ export function currentAct(): Act | null {
   if (world.home) {
     const d = homeDoor(world.home);
     consider(d.x, d.y, 1.3, () => ({
-      key: 'home', label: st.carry >= 1 ? `Зайти домой (+${Math.floor(st.carry)} Света)` : 'Зайти домой', time: 0.5, ok: true,
+      key: 'home', label: `${world.camp === 'home' ? 'Зайти домой' : 'Вернуться домой'}${st.carry >= 1 ? ` (+${Math.floor(st.carry)} Света)` : ''}`, time: 0.5, ok: true,
       run: () => { st.nightOver = true; sfx.pour(); goHome(true); },
     }));
   }
@@ -794,16 +874,12 @@ function lampAct(l: Lamp, hm: number): Act | null {
     if (l.kind === 'gas' || l.kind === 'beacon' || l.kind === 'marsh') tip(l.kind);
     return { key, label, time: k.hold * hm, ok: st.oil >= cost, why, run: () => { fill(l); sfx.light(); } };
   }
-  if (l.kind === 'beacon') {
-    // «Бумажный самолётик»: от маяка — сразу домой, весь Свет цел
-    if (has('homejump')) {
-      return { key, label: `Вернуться домой (+${Math.floor(st.carry)} Света)`, time: 0.8, ok: true, run: () => { st.nightOver = true; sfx.pour(); goHome(true); } };
-    }
-    return st.carry >= 1
-      ? { key, label: `Отправить Свет домой (+${Math.floor(st.carry * (has('mail') ? 1.2 : 1))})`, time: 0.8, ok: true, run: bank }
-      : null;
+  if (l.kind === 'beacon') return null;
+  if (!k.drain || l.oil >= lampCap(l) - 1) {
+    // «Бумажный самолётик»: от любого горящего фонаря — сразу домой, весь Свет цел
+    if (!has('homejump')) return null;
+    return { key, label: `Улететь домой (+${Math.floor(st.carry)} Света)`, time: 0.8, ok: true, run: () => { st.nightOver = true; sfx.pour(); goHome(true); } };
   }
-  if (!k.drain || l.oil >= lampCap(l) - 1) return null;
   return { key, label: 'Подлить масла', time: 0.6 * hm, ok: st.oil >= 1, why: 'Нет масла — собери подсолнухи', run: () => { fill(l); sfx.pour(); } };
 }
 
@@ -824,14 +900,15 @@ export function hint(): string {
     if (readyQuests()) return 'На доске заказов ждёт награда';
     return 'Зажги звёзды у телескопа — и снова в ночь';
   }
-  if (st.lantern < 15) return st.beacons.length
-    ? 'Фонарь гаснет! Неси Свет домой или к зажжённому маяку'
-    : 'Скорее домой! Дверь светится тёплым — иди за белой стрелкой';
+  const g = world.lamps[world.goal];
+  if (st.lantern < 15) return 'Огонь на исходе! Назад к привалу — белая стрелка — или рывок к маяку';
   if (st.night.lit.length === 0) return st.oil >= 1 ? 'Подойди к фонарю и зажми E' : 'Масла нет — ищи подсолнухи';
   if (st.seeds > 0 && !st.up.autopress && st.oil < 1) return 'Отнеси семечки на маслобойню';
   if (st.oil < 1 && st.seeds === 0) return 'Масло кончилось — подсолнухи растут в свете фонарей';
+  const need = kindCost('beacon');
+  if (st.oil >= need) return `Масла хватает на маяк! ${g.name} — в конце тропы, на востоке`;
   const q = QUESTS.find((x) => questVisible(x) && questState(x) === 'open');
-  return q ? `Заказ: ${q.text}` : 'Иди в темноту — ищи фонари и дома';
+  return q && Math.floor(st.time / 8) % 2 ? `Заказ: ${q.text}` : `Цель: зажечь ${g.name} на востоке (${need} масла)`;
 }
 
 // ---------- движение ----------
@@ -849,7 +926,7 @@ const blocked = (x: number, y: number) => {
   const tx = Math.floor(x), ty = Math.floor(y);
   if (st.scene === 'room') return roomBlocked(tx, ty);
   if (tx < 0 || ty < 0 || tx >= W || ty >= H) return true;
-  if (world.ground[ty * W + tx] === BRIDGE) return !st.up.bridge;
+  if (world.ground[ty * W + tx] === BRIDGE) return false;
   return world.block[ty * W + tx] === 1;
 };
 const R = 0.2;
@@ -910,17 +987,65 @@ function updateHelpers(dt: number) {
   }
 }
 
-function updateNight(dt: number) {
-  // ручной фонарь — таймер смены
+/** Свет фонарей и привала: сюда тени не заходят. */
+export function safeFromShades(x: number, y: number) {
+  if (world.home) { const d = homeDoor(world.home); if (Math.hypot(d.x - x, d.y - 0.6 - y) < (has('oven') ? 5 : 3.2)) return true; }
+  return world.lamps.some((l) => burning(l) && Math.hypot(l.x + 0.5 - x, l.y + 0.5 - y) < lampRadius(l) * 0.9);
+}
+
+/** Тени: бродят в темноте, заметив фонарщика — бросаются к нему. Коснулась — отняла огонь и рассеялась. */
+function updateShades(dt: number, real: number) {
+  const p = st.player;
+  const playerSafe = safeFromShades(p.x, p.y);
+  const sense = 5.5 * (hasBoon('quiet') ? 0.5 : 1);
+  for (const s of st.shadows) {
+    s.anim += real;
+    if (s.gone > 0) {
+      s.gone -= dt;
+      if (s.gone <= 0) { const q = darkSpot(14); s.x = s.tx = q.x; s.y = s.ty = q.y; }
+      continue;
+    }
+    const d = Math.hypot(p.x - s.x, p.y - s.y);
+    s.chase = !playerSafe && d < sense && !st.nightOver;
+    if (s.chase) { s.tx = p.x; s.ty = p.y; }
+    else if (Math.hypot(s.tx - s.x, s.ty - s.y) < 0.3) {
+      const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5;
+      s.tx = Math.max(2, Math.min(W - 2, s.x + Math.cos(a) * r));
+      s.ty = Math.max(2, Math.min(H - 2, s.y + Math.sin(a) * r));
+    }
+    const dx = s.tx - s.x, dy = s.ty - s.y, L = Math.hypot(dx, dy);
+    if (L > 0.01) {
+      const sp = Math.min(L, (s.chase ? 2.3 : 0.9) * dt);
+      const nx = s.x + (dx / L) * sp, ny = s.y + (dy / L) * sp;
+      // в свет не заходит: зависает у края и ищет другую дорогу
+      if (!safeFromShades(nx, ny)) { s.x = nx; s.y = ny; }
+      else if (!s.chase) { s.tx = s.x; s.ty = s.y; }
+      if (Math.abs(dx - dy) > 0.05) s.face = Math.sign(dx - dy);
+    }
+    if (d < 7) tip('shade');
+    if (d < 0.6 && !playerSafe && !st.nightOver) {
+      const dmg = 8 * (st.up.staff ? 0.5 : 1) * (hasBoon('brave') ? 0.5 : 1);
+      st.lantern = Math.max(0, st.lantern - dmg);
+      s.gone = 25;
+      st.hit = 1;
+      sfx.out();
+      sparkSay(`Ай! Тень отняла ${dmg} огня. Держись света!`, 3);
+    }
+  }
+}
+
+function updateNight(dt: number, real: number) {
+  // ручной фонарь тратится, только когда идёшь по темноте (dt здесь — время ночи: стоишь — оно не идёт)
   // «Чай у ворота»: у маслобойни фонарь тратится вдвое медленнее
   const atPress = has('tea') && world.presses.some((pr) => Math.hypot(pr.x + 0.5 - st.player.x, pr.y + 0.5 - st.player.y) < 3);
   // в свете горящего уличного фонаря свой ручной фонарь не тратится — можно постоять и передохнуть
   st.inLampLight = inLampLight();
-  if (!st.inLampLight) st.lantern = Math.max(0, st.lantern - dt * (atPress ? 0.5 : 1));
+  if (!st.inLampLight) st.lantern = Math.max(0, st.lantern - dt * (atPress ? 0.5 : 1) * (hasBoon('thrift') ? 0.7 : 1));
+  updateShades(dt, real);
   if (st.lantern <= 0 && has('spare') && !st.spareUsed) {
     st.spareUsed = true;
     addTime(8);
-    sparkSay('Запасной фитиль! Ещё 8 секунд — скорее!', 4);
+    sparkSay('Запасной фитиль! Ещё 8 огня — скорее!', 4);
   }
   if (st.lantern <= 0) { endNight(); return; }
   // «Совиный слух»: дом жителя рядом — розовая стрелка
@@ -970,7 +1095,7 @@ function updateNight(dt: number) {
   }
 
   // свет открывает карту
-  st.knownAcc += dt;
+  st.knownAcc += real;
   if (st.knownAcc > 0.15) {
     st.knownAcc = 0;
     let changed = false;
@@ -997,6 +1122,8 @@ function updateNight(dt: number) {
   if (st.lantern < 12) tip('low');
   const p = st.player;
   if (world.houses.some((h) => !st.met.includes(h.rid) && Math.hypot(h.x + 1 - p.x, h.y + 1 - p.y) < 4)) tip('house');
+  if (world.chests.some((c) => !c.open && Math.hypot(c.x + 0.5 - p.x, c.y + 0.5 - p.y) < 4)) tip('chest');
+  if (st.time > 4 && st.nights <= 2) tip('flow');
 
   checkQuests();
 }
@@ -1026,6 +1153,7 @@ export function update(dt: number, inp: Input) {
   if (st.cine) { st.time += dt; tickCine(dt); return; }
   if (paused()) return;
   st.time += dt;
+  st.hit = Math.max(0, st.hit - dt * 1.5);
   updateSpark(dt);
   if (st.scene === 'night' && st.nightOver) return;
   movePlayer(dt, inp);
@@ -1048,8 +1176,12 @@ export function update(dt: number, inp: Input) {
     st.hold.t = 0;
   }
 
-  if (st.scene === 'night') updateNight(dt);
+  // ночь идёт, только пока фонарщик идёт или что-то делает
+  st.flow = p0moving() || st.hold.key !== '' ? 1 : 0;
+  if (st.scene === 'night') updateNight(dt * st.flow, dt);
 }
+
+const p0moving = () => st.player.moving;
 
 // ---------- сохранение ----------
 
@@ -1059,8 +1191,7 @@ export function save() {
   const data = {
     lumens: st.lumens, up: st.up, stars: st.stars, skyV: SKY_VERSION, met: st.met, movedIn: st.movedIn, quests: st.quests,
     nights: st.nights, notesRead: st.notesRead, seen: st.seen, tips: st.tips, dryNights: st.dryNights,
-    hasJournal: st.hasJournal, journal: st.journal, journalNew: st.journalNew, beacons: st.beacons,
-    known: Array.from(st.known).join(''),
+    hasJournal: st.hasJournal, journal: st.journal, journalNew: st.journalNew, cleared: st.cleared,
   };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* без сохранения */ }
 }
@@ -1111,10 +1242,7 @@ export function load(): boolean {
   st.journal = data.journal ?? [];
   st.journalNew = data.journalNew ?? false;
   if (st.seen.firstReturn && st.hasJournal && !st.journal.includes('sky')) { st.journal.push('sky'); st.journalNew = true; }
-  st.beacons = data.beacons ?? [];
-  const k: string = data.known ?? '';
-  for (let i = 0; i < k.length && i < st.known.length; i++) st.known[i] = k[i] === '1' ? 1 : 0;
-  st.knownVer++;
+  st.cleared = (data.cleared ?? []).filter((d: string) => (DISTRICTS as string[]).includes(d));
   return true;
 }
 

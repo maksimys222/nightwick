@@ -1,7 +1,7 @@
 // Заглушки вместо арта: всё рисуется фигурами (Graphics) вокруг точки 0,0 = центр тайла.
 // Когда появятся настоящие спрайты, заменять нужно только этот файл.
 
-import { Graphics, Texture } from 'pixi.js';
+import { Graphics, GraphicsContext, Texture } from 'pixi.js';
 import { TW, TH, toScreen } from './iso';
 import type { Lamp, Flower } from './map';
 import { burning, lampCap } from './game';
@@ -13,6 +13,16 @@ export const hash = (x: number, y: number) => {
   const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return h - Math.floor(h);
 };
+
+/** Готовые рисунки деревьев (общие на все деревья одного вида) — так тысячи деревьев строятся мгновенно. */
+const treeCache = new WeakMap<Biome, GraphicsContext[]>();
+export function treeContext(v: number, b: Biome = BIOMES.street) {
+  let list = treeCache.get(b);
+  if (!list) treeCache.set(b, (list = []));
+  const q = Math.round(v * 15);
+  if (!list[q]) { const c = new GraphicsContext(); drawTree(c, q / 15, b); list[q] = c; }
+  return list[q];
+}
 
 /** Ромб тайла (с запасом в полпикселя, чтобы между тайлами не было щелей). */
 export function diamond(g: Graphics, x: number, y: number, color: number, alpha = 1) {
@@ -61,7 +71,7 @@ export function makeHaloTexture() {
 // ---------- заглушки объектов (рисуются вокруг точки 0,0 = центр тайла) ----------
 
 /** Дерево: круглое пушистое или ёлка — смотря какой район. v — случайное число дерева 0..1. */
-export function drawTree(g: Graphics, v: number, b: Biome = BIOMES.street) {
+export function drawTree(g: Graphics | GraphicsContext, v: number, b: Biome = BIOMES.street) {
   const round = hash(v * 91, 7) < b.round;
   g.ellipse(0, 1, 9, 3.5).fill({ color: 0x000000, alpha: 0.25 });
   g.rect(-1, -6, 3, 7).fill(0x7a4a26);

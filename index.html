@@ -14,7 +14,7 @@
     <div id="bubble" hidden></div>
     <div id="hud">
       <div class="res" title="Свет — главная валюта. Дают горящие фонари. Тратится на улучшения в мастерской."><i class="ic sun"></i><span class="lbl">Свет</span><b id="lumens">0</b><small id="rate"></small></div>
-      <div class="res night-only" title="Свет, собранный за ночь. Сохранится, только если донести его до дома."><i class="ic carry"></i><span class="lbl">В фонаре</span><b id="carry">0</b></div>
+      <div class="res night-only" title="Свет, собранный за ночь. Сохранится, если донести до привала или зажечь маяк."><i class="ic carry"></i><span class="lbl">В фонаре</span><b id="carry">0</b></div>
       <div class="res night-only" title="Масло — топливо для уличных фонарей. Делается из семечек на маслобойне."><i class="ic oil"></i><span class="lbl">Масло</span><b id="oil">0</b></div>
       <div class="res night-only" title="Семечки — с цветущих подсолнухов. Отнеси на маслобойню: 1 семечко = 1 масло."><i class="ic seed"></i><span class="lbl">Семечки</span><b id="seeds">0</b></div>
       <div id="ready" class="ready" hidden>Награда на доске!</div>
@@ -22,9 +22,9 @@
     </div>
     <div id="top">
       <div id="timer" hidden>
-        <span class="t-lbl">Фонарь</span>
+        <span class="t-lbl">Огонь</span>
         <div class="t-bar"><div id="timer-fill"></div></div>
-        <span id="timer-text">0:00</span>
+        <span id="timer-text">0</span>
       </div>
       <div id="goal"></div>
     </div>
@@ -46,6 +46,7 @@
       </div>
     </div>
     <div id="starsky" hidden></div>
+    <div id="hit"></div>
     <div id="fade"></div>
     <button id="skip" hidden>Пропустить</button>
     <div id="talk" hidden><div id="talk-who"></div><div id="talk-text"></div></div>
