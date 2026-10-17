@@ -12,6 +12,7 @@ import { st, world, type Light, type Scene } from './game';
 import { makePlaza } from './plaza';
 import { makeLightTexture, makeHaloTexture, drawSpark } from './draw';
 import { frames } from './sprites';
+import { settings } from './settings';
 import { NightView } from './nightView';
 import { RoomView } from './roomView';
 
@@ -213,12 +214,13 @@ export class Renderer {
       });
     };
     sync(this.holes, 'erase', 0xffffff, 1, 1);
-    sync(this.glow, 'add', v.glowTint, 0.16, 0.8);
+    if (settings.quality !== 'low') sync(this.glow, 'add', v.glowTint, 0.16, 0.8);
+    this.glow.visible = settings.quality !== 'low';
 
     // Искры: в экранных пикселях, координаты не округляем — летят плавно
     this.floatLayer.scale.set(this.scale);
     this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
-    this.drawHalos(v.halos(), t);
+    this.drawHalos(settings.quality === 'low' ? [] : v.halos(), t);
     // прыгающая стрелка над фонарём, о котором говорит Искра
     const g = this.pointer.clear();
     const shown = this.shownLamp();
@@ -301,7 +303,7 @@ export class Renderer {
       burst.tint = white;
       burst.alpha = h.flash * 0.7;
       // два мотылька у стекла (у огонька на шесте — нет)
-      for (let k = 0; k < (h.size >= 1 ? 2 : 0); k++) {
+      for (let k = 0; k < (h.size >= 1 && settings.quality === 'high' ? 2 : 0); k++) {
         const a = t * (2.1 + k * 0.9) + h.id * 2.3 + k * 3;
         const r = 6 + 3 * Math.sin(t * 1.3 + k + h.id);
         const mx = x + Math.cos(a) * r, my = y - 1 + Math.sin(a * 1.6) * r * 0.55;

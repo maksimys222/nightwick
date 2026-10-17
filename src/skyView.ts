@@ -5,6 +5,7 @@
 import { st, lightStar, starBlock, starCost, starLit, branchOpen, doneConstellations } from './game';
 import { STARS, FX, CONSTELLATIONS, CONSTELLATION_BONUS, starById, starName, type Star, type Branch } from './sky';
 import { residentById, type ResidentId } from './story';
+import { settings } from './settings';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -138,8 +139,8 @@ export class SkyView {
         const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
         if (Math.hypot(dx, dy) > 4) this.drag.moved = true;
         if (this.drag.moved) {
-          this.view.x = this.drag.vx + dx;
-          this.view.y = this.drag.vy + dy;
+          this.view.x = this.drag.vx + dx * settings.mouse;
+          this.view.y = this.drag.vy + dy * settings.mouse;
           this.applyView();
           this.tip.hidden = true;
           return;
@@ -165,7 +166,7 @@ export class SkyView {
     this.svg.addEventListener('pointerleave', () => { this.hover = null; this.tip.hidden = true; });
     this.svg.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const k = Math.min(3, Math.max(0.35, this.view.k * Math.exp(-e.deltaY * 0.0015)));
+      const k = Math.min(3, Math.max(0.35, this.view.k * Math.exp(-e.deltaY * 0.0015 * settings.mouse)));
       // приближаем к курсору
       const r = this.svg.getBoundingClientRect();
       const mx = e.clientX - r.left - r.width / 2, my = e.clientY - r.top - r.height / 2;

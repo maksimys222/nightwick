@@ -7,7 +7,8 @@ import {
 import { QUESTS, JOURNAL, residentById, type ResidentId } from './story';
 import { DISTRICT_NAMES } from './map';
 import type { Renderer } from './render';
-import { getVolume, setVolume, pick, out } from './audio';
+import { getVolume, setVolume, getMusicVolume, setMusicVolume, setMusic, pick, out } from './audio';
+import { settings, saveSettings, QUALITY_NAMES, type Quality } from './settings';
 import { SkyView } from './skyView';
 import { CONSTELLATIONS } from './sky';
 
@@ -62,6 +63,11 @@ export class UI {
     const vol = $('vol') as HTMLInputElement;
     vol.value = String(Math.round(getVolume() * 100));
     vol.addEventListener('input', () => setVolume(Number(vol.value) / 100));
+    const music = $('music') as HTMLInputElement;
+    music.value = String(Math.round(getMusicVolume() * 100));
+    music.addEventListener('input', () => setMusicVolume(Number(music.value) / 100));
+    const mouse = $('mouse') as HTMLInputElement;
+    mouse.addEventListener('input', () => { settings.mouse = Number(mouse.value) / 100; saveSettings(); this.showSettings(); });
     $('modal-close').addEventListener('click', () => this.closeModal());
     $('modal').addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
@@ -95,13 +101,20 @@ export class UI {
     $('menu-settings').hidden = true;
     const has = this.actions.hasGame();
     const items: [string, string][] = mode === 'pause'
-      ? [['resume', 'Продолжить'], ...(st.hasJournal ? [['guide', 'Дневник']] as [string, string][] : []), ['settings', 'Настройки'], ['tomain', 'Главное меню']]
+      ? [['resume', 'Продолжить'], ...(st.hasJournal ? [['guide', 'Дневник']] as [string, string][] : []), ['settings', 'Настройки'], ['tomain', 'Главное меню'], ['quit', 'Выйти из игры']]
       : has
-        ? [['resume', 'Продолжить'], ['new', 'Новая игра'], ['settings', 'Настройки']]
-        : [['new', 'Начать игру'], ['settings', 'Настройки']];
+        ? [['resume', 'Продолжить'], ['new', 'Новая игра'], ['settings', 'Настройки'], ['credits', 'Титры'], ['quit', 'Выйти из игры']]
+        : [['new', 'Начать игру'], ['settings', 'Настройки'], ['credits', 'Титры'], ['quit', 'Выйти из игры']];
+    for (const id of ['menu-settings', 'menu-credits', 'menu-bye']) $(id).hidden = true;
     const list = $('menu-main');
     list.hidden = false;
     list.innerHTML = items.map(([m, t]) => `<button data-m="${m}">${t}</button>`).join('');
+  }
+
+  private showSettings() {
+    $('quality').textContent = QUALITY_NAMES[settings.quality];
+    ($('mouse') as HTMLInputElement).value = String(Math.round(settings.mouse * 100));
+    $('mouse-val').textContent = `×${settings.mouse.toFixed(1)}`;
   }
 
   private closeMenu() {
@@ -135,9 +148,24 @@ export class UI {
     } else if (m === 'settings') {
       $('menu-main').hidden = true;
       $('menu-settings').hidden = false;
+      this.showSettings();
+    } else if (m === 'credits') {
+      $('menu-main').hidden = true;
+      $('menu-credits').hidden = false;
+    } else if (m === 'quit') {
+      // браузер не даёт игре закрыть вкладку сама (кроме открытой ею же) — тогда прощаемся экраном
+      save();
+      window.close();
+      $('menu-main').hidden = true;
+      $('menu-bye').hidden = false;
+    } else if (m === 'quality') {
+      const order: Quality[] = ['low', 'medium', 'high'];
+      settings.quality = order[(order.indexOf(settings.quality) + 1) % order.length];
+      saveSettings();
+      this.showSettings();
     } else if (m === 'back') {
       $('menu-main').hidden = false;
-      $('menu-settings').hidden = true;
+      for (const id of ['menu-settings', 'menu-credits', 'menu-bye']) $(id).hidden = true;
     } else if (m === 'tomain') {
       save();
       this.openMenu('main');
@@ -296,6 +324,8 @@ export class UI {
     document.body.dataset.scene = st.scene;
     document.body.classList.toggle('cine', !!st.cine);
     document.body.classList.toggle('in-menu', st.menu);
+    // музыка: в меню и мастерской — шкатулка, ночью — тихая ночная; в роликах — только звуки
+    setMusic(st.menu || (st.scene === 'room' && !st.cine) ? 'menu' : st.scene === 'night' && !st.cine ? 'night' : null);
 
     // ролик: небо с солнцем, затемнение, кнопка «пропустить»
     const c = st.cine;

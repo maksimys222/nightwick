@@ -55,8 +55,27 @@
         <div class="menu-sub">Зажги свет в вечной ночи</div>
         <div id="menu-main" class="menu-list"></div>
         <div id="menu-settings" class="menu-list" hidden>
-          <label class="vol">Громкость <input type="range" id="vol" min="0" max="100" /></label>
+          <label class="vol">Звуки <input type="range" id="vol" min="0" max="100" /></label>
+          <label class="vol">Музыка <input type="range" id="music" min="0" max="100" /></label>
+          <label class="vol">Графика <button id="quality" class="opt" data-m="quality"></button></label>
+          <label class="vol">Мышь <input type="range" id="mouse" min="50" max="200" /><span id="mouse-val"></span></label>
           <button data-m="back">Назад</button>
+        </div>
+        <div id="menu-credits" class="menu-list" hidden>
+          <div class="credits">
+            <h3>«Фонарщик»</h3>
+            <p><b>Идея, игра</b><br />Максим</p>
+            <p><b>Код и пиксель-арт</b><br />Максим вместе с Claude (Anthropic)</p>
+            <p><b>Шрифт</b><br />Pixelify Sans (SIL Open Font License)</p>
+            <p><b>Движок</b><br />PixiJS</p>
+            <p><b>Музыка и звуки</b><br />синтезированы прямо в игре</p>
+            <p class="thanks">Спасибо, что зажигаете свет!</p>
+          </div>
+          <button data-m="back">Назад</button>
+        </div>
+        <div id="menu-bye" class="menu-list" hidden>
+          <div class="credits"><h3>Спасибо за игру!</h3><p>Прогресс сохранён. Вкладку можно закрыть.</p></div>
+          <button data-m="back">Вернуться в игру</button>
         </div>
       </div>
     </div>

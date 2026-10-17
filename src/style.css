@@ -214,8 +214,19 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #menu {
   position: fixed; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 40%, rgba(60, 40, 20, 0.6), rgba(0, 0, 0, 0.92));
+  background: #0a0818 url('../art/examples/ui/menu_bg.png') center / cover no-repeat;
+  image-rendering: pixelated;
 }
+/* на широком экране меню — справа, на ночной стороне: слева видно солнце, посередине — фонарь */
+@media (min-aspect-ratio: 4/3) { #menu:not(.pause) { justify-content: flex-end; padding-right: 7vw; } }
+#menu .menu-box { background: rgba(8, 6, 20, 0.62); padding: 18px 22px 22px; border: 2px solid var(--edge); box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+.vol .opt { font: inherit; font-size: 18px; color: var(--warm); background: var(--panel); border: 2px solid var(--edge); padding: 2px 12px; cursor: pointer; }
+#mouse-val { color: var(--dim); min-width: 40px; }
+.credits { color: var(--ink); font-size: 16px; line-height: 1.35; margin-bottom: 8px; }
+.credits h3 { color: var(--warm); font-weight: 400; font-size: 24px; margin: 0 0 10px; }
+.credits p { margin: 0 0 10px; }
+.credits b { color: #ffd36b; font-weight: 400; }
+.credits .thanks { color: var(--warm); margin-top: 14px; }
 #menu.pause { background: rgba(0, 0, 0, 0.6); }
 .menu-box { text-align: center; width: min(360px, 90vw); }
 #logo { width: 300px; max-width: 100%; image-rendering: pixelated; filter: drop-shadow(0 0 18px rgba(255, 170, 50, 0.45)); }
