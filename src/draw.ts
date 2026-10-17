@@ -656,37 +656,79 @@ export function drawSpark(g: Graphics, t: number) {
 
 // ---------- площадь из ролика и дом фонарщика ----------
 
+/** Фонтан: каменная чаша с бортиком, вода с бликами, колонна с верхней чашей, струи переливаются. */
 export function drawFountain(g: Graphics, t: number) {
-  isoBox(g, 2, 2, 6, 0x8a8a96, 0x9a9aa8, 0x6a6a78);
+  isoBox(g, 2, 2, 6, 0xb8b2a8, 0x8e887e, 0x9a948a);
   const c = toScreen(1, 1);
-  g.ellipse(c.x, c.y - 6, 12, 6).fill(0x3a7ac0);
-  g.ellipse(c.x, c.y - 6, 9, 4).fill(0x4a8ad0);
-  g.rect(c.x - 1, c.y - 18, 3, 12).fill(0x9a9aa8);
-  const k = Math.floor(t * 6) % 2;
-  g.rect(c.x - 3 - k, c.y - 20, 2, 2).fill(0xbfe0ff);
-  g.rect(c.x + 2 + k, c.y - 19, 2, 2).fill(0xbfe0ff);
-  g.rect(c.x, c.y - 22, 1, 3).fill(0xe0f0ff);
+  // бортик и вода
+  g.ellipse(c.x, c.y - 6, 14, 7).fill(0xc8c2b8);
+  g.ellipse(c.x, c.y - 6, 12, 6).fill(0x2a9ac0);
+  g.ellipse(c.x - 2, c.y - 7, 8, 3.5).fill(0x3ab4d8);
+  const k = Math.floor(t * 4) % 3;
+  for (const [dx, dy] of [[-6, -6], [5, -4], [-1, -3]]) g.rect(c.x + dx + k, c.y + dy, 3, 1).fill(0xa8f0f8);
+  // колонна и верхняя чаша
+  g.rect(c.x - 2, c.y - 18, 4, 12).fill(0xb8b2a8);
+  g.rect(c.x - 2, c.y - 18, 1, 12).fill(0xd8d2c8);
+  g.rect(c.x + 1, c.y - 18, 1, 12).fill(0x8e887e);
+  g.ellipse(c.x, c.y - 18, 6, 2.5).fill(0xc8c2b8);
+  g.ellipse(c.x, c.y - 18.5, 4.5, 1.6).fill(0x3ab4d8);
+  // струи: сверху вверх и стекают вниз
+  const f = Math.floor(t * 6) % 2;
+  g.rect(c.x, c.y - 24 - f, 1, 5).fill(0xe0f8ff);
+  g.rect(c.x - 4 - f, c.y - 20, 1, 2).fill(0xbfe8ff);
+  g.rect(c.x + 4 + f, c.y - 20, 1, 2).fill(0xbfe8ff);
+  g.rect(c.x - 6, c.y - 16 + f, 1, 6).fill({ color: 0xbfe8ff, alpha: 0.8 });
+  g.rect(c.x + 6, c.y - 15 - f, 1, 6).fill({ color: 0xbfe8ff, alpha: 0.8 });
 }
 
+/** Лоток Милы: прилавок, полосатый навес, корзинки с пирожками и вывеска-крендель. */
 export function drawStall(g: Graphics) {
-  isoBox(g, 1, 1, 8, 0x8a5a32, 0x9a6a3a, 0xc89a62);
+  isoBox(g, 1, 1, 8, 0x9a6a3a, 0x7a5030, 0xc89a62);
   const c = toScreen(0.5, 0.5);
-  for (const [dx, dy] of [[-4, -10], [0, -11], [4, -10]]) g.ellipse(c.x + dx, c.y + dy, 3, 2).fill(0xd8a050);
-  g.rect(c.x - 8, c.y - 22, 1, 12).fill(0x6b4423);
-  g.rect(c.x + 7, c.y - 22, 1, 12).fill(0x6b4423);
-  g.poly([c.x - 10, c.y - 22, c.x + 10, c.y - 22, c.x + 8, c.y - 26, c.x - 8, c.y - 26]).fill(0xd04a3a);
-  g.rect(c.x - 8, c.y - 24, 4, 2).fill(0xf0e8d8);
-  g.rect(c.x, c.y - 24, 4, 2).fill(0xf0e8d8);
+  // доски прилавка
+  const l = toScreen(0, 1), b = toScreen(1, 1);
+  g.poly([l.x, l.y - 4, b.x, b.y - 4, b.x, b.y - 3, l.x, l.y - 3]).fill(0x7a5030);
+  // пирожки в корзинках
+  for (const [dx, dy] of [[-5, -10], [0, -11], [5, -10]]) {
+    g.ellipse(c.x + dx, c.y + dy + 1, 3.5, 1.8).fill(0x8a6030);
+    g.ellipse(c.x + dx, c.y + dy, 3, 1.6).fill(0xd8a050);
+    g.rect(c.x + dx - 1, c.y + dy - 1, 2, 1).fill(0xf0c070);
+  }
+  // стойки и полосатый навес
+  g.rect(c.x - 9, c.y - 24, 1, 14).fill(0x6b4423);
+  g.rect(c.x + 8, c.y - 24, 1, 14).fill(0x4a2e18);
+  for (let i = 0; i < 5; i++) {
+    const x0 = c.x - 11 + i * 4.4;
+    g.poly([x0, c.y - 23, x0 + 4.4, c.y - 23, x0 + 3.8, c.y - 28, x0 + 0.6, c.y - 28]).fill(i % 2 ? 0xf4ecdc : 0xd04a3a);
+  }
+  for (let i = 0; i < 5; i++) g.circle(c.x - 8.8 + i * 4.4, c.y - 23, 2.2).fill(i % 2 ? 0xf4ecdc : 0xd04a3a); // фестоны
+  // вывеска-крендель
+  g.rect(c.x - 1, c.y - 33, 1, 5).fill(0x4a2e18);
+  g.circle(c.x - 0.5, c.y - 35, 3).fill(0xc8803a);
+  g.circle(c.x - 0.5, c.y - 35, 1.3).fill(0xd04a3a);
 }
 
+/** Мольберт Ники: тренога, холст с нарисованным улыбчивым солнцем, баночка с кистями. */
 export function drawEasel(g: Graphics) {
   const c = toScreen(0.5, 0.5);
-  g.rect(c.x - 5, c.y - 14, 1, 14).fill(0x6b4423);
-  g.rect(c.x + 4, c.y - 14, 1, 14).fill(0x6b4423);
-  g.rect(c.x - 6, c.y - 20, 12, 10).fill(0xf0e8d8);
-  g.circle(c.x, c.y - 15, 3).fill(0xffd23a);
-  g.rect(c.x - 1, c.y - 16, 1, 1).fill(0x5a3a10);
-  g.rect(c.x + 1, c.y - 16, 1, 1).fill(0x5a3a10);
+  g.ellipse(c.x, c.y + 1, 7, 2.5).fill({ color: 0x000000, alpha: 0.25 });
+  g.poly([c.x - 6, c.y + 1, c.x - 5, c.y + 1, c.x - 1, c.y - 22, c.x - 2, c.y - 22]).fill(0x8a5a32);
+  g.poly([c.x + 5, c.y + 1, c.x + 6, c.y + 1, c.x + 2, c.y - 22, c.x + 1, c.y - 22]).fill(0x6b4423);
+  g.rect(c.x, c.y - 10, 1, 11).fill(0x5a3a1e);
+  g.rect(c.x - 7, c.y - 10, 14, 1).fill(0x7a5232); // полочка
+  // холст
+  g.rect(c.x - 7, c.y - 22, 14, 12).fill(0x8a6a40);
+  g.rect(c.x - 6, c.y - 21, 12, 10).fill(0xa8d8f0);
+  g.rect(c.x - 6, c.y - 14, 12, 3).fill(0x6aca50); // травка
+  g.circle(c.x, c.y - 17, 3).fill(0xffd23a);
+  for (const [dx, dy] of [[-4, -17], [4, -17], [0, -21], [-3, -20], [3, -20]]) g.rect(c.x + dx, c.y + dy, 1, 1).fill(0xffb030);
+  g.rect(c.x - 1, c.y - 18, 1, 1).fill(0x5a3a10);
+  g.rect(c.x + 1, c.y - 18, 1, 1).fill(0x5a3a10);
+  g.rect(c.x - 1, c.y - 16, 3, 1).fill(0x5a3a10);
+  // баночка с кистями
+  g.rect(c.x + 6, c.y - 3, 3, 4).fill(0x6a9ac8);
+  g.rect(c.x + 6, c.y - 6, 1, 3).fill(0x8a5a32); g.rect(c.x + 6, c.y - 7, 1, 1).fill(0xff8a3a);
+  g.rect(c.x + 8, c.y - 6, 1, 3).fill(0x8a5a32); g.rect(c.x + 8, c.y - 7, 1, 1).fill(0x3a9ad0);
 }
 
 /** Дом фонарщика: окна всегда горят, у двери фонарик — дар Искры. */
