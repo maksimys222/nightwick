@@ -92,6 +92,7 @@ export class UI {
   openMenu(mode: 'main' | 'pause') {
     this.menuMode = mode;
     st.menu = true;
+    st.menuBackdrop = mode === 'main';
     $('menu').hidden = false;
     $('menu').classList.toggle('pause', mode === 'pause');
     $('menu-title').textContent = mode === 'pause' ? 'Пауза' : 'Фонарщик';
@@ -119,6 +120,7 @@ export class UI {
 
   private closeMenu() {
     st.menu = false;
+    st.menuBackdrop = false;
     $('menu').hidden = true;
     st.holdLock = true;
   }
@@ -329,8 +331,9 @@ export class UI {
 
     // ролик: небо с солнцем, затемнение, кнопка «пропустить»
     const c = st.cine;
-    $('sky').hidden = !c?.sky;
-    if (c?.sky) $('sky').dataset.state = c.sky;
+    // небо с солнцем: в ролике — как в сценарии, в главном меню — солнце слева
+    $('sky').hidden = !c?.sky && !st.menuBackdrop;
+    $('sky').dataset.state = c?.sky ?? (st.menuBackdrop ? 'menu' : '');
     $('skip').hidden = !c;
     ($('fade') as HTMLElement).style.opacity = String(c ? c.fade : 0);
 

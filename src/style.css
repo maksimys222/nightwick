@@ -230,12 +230,33 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #menu {
   position: fixed; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
-  background: #0a0818 url('../art/examples/ui/menu_bg.png') center / cover no-repeat;
-  image-rendering: pixelated;
+  /* позади — живая дневная площадь; справа на неё наползает тьма со звёздами */
+  background:
+    radial-gradient(1px 1px at 78% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 86% 32%, #cfd0ff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 92% 12%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 70% 40%, #cfd0ff 50%, transparent 51%),
+    radial-gradient(1px 1px at 95% 52%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 82% 62%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 74% 75%, #cfd0ff 50%, transparent 51%),
+    radial-gradient(1px 1px at 90% 84%, #fff 50%, transparent 51%),
+    linear-gradient(90deg, rgba(4, 3, 16, 0) 0%, rgba(4, 3, 16, 0.15) 38%, rgba(12, 6, 30, 0.78) 62%, rgba(4, 2, 14, 0.96) 100%);
 }
-/* на широком экране меню — справа, на ночной стороне: слева видно солнце, посередине — фонарь */
-@media (min-aspect-ratio: 4/3) { #menu:not(.pause) { justify-content: flex-end; padding-right: 7vw; } }
-#menu .menu-box { padding: 14px 18px 18px; }
+#menu::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 30% 35%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.35) 100%);
+}
+#sky[data-state='menu'] { background: linear-gradient(#7ec8f0, rgba(126, 200, 240, 0.4) 60%, rgba(126, 200, 240, 0)); }
+#sky[data-state='menu'] #sun { left: 17%; top: 9vh; animation: sun-bob 4s ease-in-out infinite; }
+@keyframes sun-bob { 50% { transform: translateY(-1.2vh) rotate(4deg); } }
+#menu .menu-box { padding: 18px 22px 22px; }
+#menu:not(.pause) .menu-box { background: none; border: none; border-image: none; }
+#menu:not(.pause) #logo { width: 420px; filter: drop-shadow(0 4px 0 #2a1408) drop-shadow(0 0 24px rgba(255, 170, 50, 0.6)); }
+#menu:not(.pause) .menu-sub { color: #fff4d8; text-shadow: 0 2px 0 #000, 0 0 8px #000; font-size: 20px; }
+#menu:not(.pause) .menu-list { gap: 12px; padding: 0 30px; }
+.menu-list button { font-size: 24px; padding: 10px 0; text-shadow: 0 2px 0 #000; transition: transform 0.08s; }
+.menu-list button:hover { transform: translateY(-2px); }
+.menu-list button:active { transform: translateY(1px); }
 .vol .opt { font: inherit; font-size: 18px; color: var(--warm); background: var(--panel); border: 2px solid var(--edge); padding: 2px 12px; cursor: pointer; }
 #mouse-val { color: var(--dim); min-width: 40px; }
 .credits { color: var(--ink); font-size: 16px; line-height: 1.35; margin-bottom: 8px; }
@@ -244,7 +265,7 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 .credits b { color: #ffd36b; font-weight: 400; }
 .credits .thanks { color: var(--warm); margin-top: 14px; }
 #menu.pause { background: rgba(0, 0, 0, 0.6); }
-.menu-box { text-align: center; width: min(360px, 90vw); }
+.menu-box { text-align: center; width: min(380px, 90vw); position: relative; z-index: 1; }
 #logo { width: 300px; max-width: 100%; image-rendering: pixelated; filter: drop-shadow(0 0 18px rgba(255, 170, 50, 0.45)); }
 #menu-title { font-size: 56px; font-weight: 400; color: var(--warm); margin: 0; text-shadow: 0 0 24px rgba(255, 180, 60, 0.6); }
 .menu-sub { color: var(--dim); font-size: 18px; margin: 4px 0 28px; }

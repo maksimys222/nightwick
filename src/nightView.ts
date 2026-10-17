@@ -46,7 +46,7 @@ export class NightView implements View {
   private litAt = new Map<number, number>();
   private wasLit = new Set<number>();
 
-  darkAlpha = darkAlpha;
+  darkAlpha = () => (!this.main && !st.cine ? 0 : darkAlpha());
 
   /** Фонарь, который сейчас зажигают (держат E), — или null. */
   private lightingLamp() {
@@ -79,7 +79,7 @@ export class NightView implements View {
     }
     return out;
   }
-  lights = lights;
+  lights = () => (!this.main && !st.cine ? [] : lights());
   focus() { return st.cine ? st.cine.cam : { x: st.player.x, y: st.player.y }; }
   /** Искру рисует Renderer поверх мира — так она летает плавно, без пиксельных скачков. */
   sparks() {
@@ -288,9 +288,24 @@ export class NightView implements View {
     }
   }
 
+  /** Жители гуляют по площади, пока на экране главное меню. */
+  private strollers() {
+    const t = performance.now() / 1000;
+    const spots: [string, number, number][] = [['mila', 11.5, 5], ['agata', 5, 6.5], ['timofey', 5.2, 10], ['nika', 11.5, 9.5], ['filin', 6.5, 3.8], ['seva', 9, 11]];
+    return spots.map(([id, bx, by], i) => {
+      const a = t * 0.35 + i * 1.7;
+      const x = bx + Math.sin(a) * 0.9, y = by + Math.sin(a * 0.7 + i) * 0.5;
+      const vx = Math.cos(a) * 0.9, vy = Math.cos(a * 0.7 + i) * 0.35;
+      // иногда стоят и болтают
+      const moving = Math.sin(t * 0.25 + i * 2) > -0.3;
+      return { id, kind: id === 'filin' ? 'person' : 'person', x: moving ? x : bx, y: moving ? y : by, face: Math.sign(vx - vy) || 1,
+        anim: t, moving, alpha: 1, cast: false } as const;
+    });
+  }
+
   /** Персонажи ролика. */
   private drawActors() {
-    const actors = st.cine?.actors ?? [];
+    const actors = st.cine?.actors ?? (!this.main && st.menuBackdrop ? this.strollers() : []);
     while (this.actorGs.length < actors.length) {
       const f = new Figure();
       this.objects.addChild(f);

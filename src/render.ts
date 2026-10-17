@@ -87,7 +87,9 @@ export class Renderer {
     this.resize();
   }
 
-  private get view() { return this.views[st.scene]; }
+  /** Какая сцена на экране: в главном меню — площадь, иначе — где игрок. */
+  private get sceneNow(): Scene { return st.menuBackdrop ? 'plaza' : st.scene; }
+  private get view() { return this.views[this.sceneNow]; }
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -108,7 +110,7 @@ export class Renderer {
 
   /** Смена сцены: подменяем содержимое камеры и сразу ставим камеру на место. */
   private switchView() {
-    this.current = st.scene;
+    this.current = this.sceneNow;
     const v = this.view;
     this.cam.removeChildren();
     this.cam.addChild(v.root, this.glow);
@@ -144,13 +146,20 @@ export class Renderer {
   }
 
   frame(dt: number) {
-    if (this.current !== st.scene) this.switchView();
+    if (this.current !== this.sceneNow) this.switchView();
     const v = this.view;
 
     // камера: в игре — жёстко за игроком (иначе он «дрожит»), в ролике — плавно
     const f = v.focus();
     const p = toScreen(f.x, f.y);
-    if (st.cine) {
+    if (st.menuBackdrop) {
+      // главное меню: камера медленно плывёт над площадью
+      const tt = performance.now() / 1000;
+      const q = toScreen(9 + Math.sin(tt * 0.06) * 3, 7.5 + Math.cos(tt * 0.045) * 2);
+      const k = 1 - Math.exp(-dt * 1.5);
+      this.camPos.x += (q.x - this.camPos.x) * k;
+      this.camPos.y += (q.y - this.camPos.y) * k;
+    } else if (st.cine) {
       // кто сейчас говорит — тот должен быть в кадре (на узком экране он может оказаться за краем)
       const id = st.dialog[0]?.actor;
       const a = id ? st.cine.actors.find((x) => x.id === id) : undefined;
