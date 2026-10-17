@@ -54,5 +54,5 @@ export function makePlaza(): Plaza {
     }
   }
 
-  return { w, h, ground, block, trees, lamps, flowers, houses, presses: [], home: null, start: { x: 8.5, y: 10 }, edge: 'forest', props };
+  return { w, h, ground, block, trees, lamps, flowers, houses, presses: [], home: null, start: { x: 8.5, y: 10 }, edge: 'forest', biome: () => 'street', props };
 }

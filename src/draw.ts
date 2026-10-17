@@ -5,6 +5,7 @@ import { Graphics, Texture } from 'pixi.js';
 import { TW, TH, toScreen } from './iso';
 import type { Lamp, Flower } from './map';
 import { burning, lampCap } from './game';
+import { BIOMES, ROOFS, shade, type Biome } from './palette';
 
 export const hash = (x: number, y: number) => {
   const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
@@ -39,14 +40,38 @@ export function makeLightTexture() {
 
 // ---------- заглушки объектов (рисуются вокруг точки 0,0 = центр тайла) ----------
 
-export function drawTree(g: Graphics, v: number) {
-  const h = 22 + Math.round(v * 8);
-  const dark = v > 0.5 ? 0x24502a : 0x2a5a2c;
-  g.ellipse(0, 1, 8, 3).fill({ color: 0x000000, alpha: 0.25 });
-  g.rect(-1, -5, 3, 6).fill(0x6b4423);
-  g.poly([0, -h + 4, 9, -8, -9, -8]).fill(dark);
-  g.poly([0, -h, 7, -h + 12, -7, -h + 12]).fill(0x3a7a3a);
-  g.poly([-1, -h + 2, -5, -h + 11, -1, -h + 11]).fill(0x5aa04a);
+/** Дерево: круглое пушистое или ёлка — смотря какой район. v — случайное число дерева 0..1. */
+export function drawTree(g: Graphics, v: number, b: Biome = BIOMES.street) {
+  const round = hash(v * 91, 7) < b.round;
+  g.ellipse(0, 1, 9, 3.5).fill({ color: 0x000000, alpha: 0.25 });
+  g.rect(-1, -6, 3, 7).fill(0x7a4a26);
+  g.rect(1, -6, 1, 7).fill(0x5a3418);
+  if (round) {
+    const [d, m, l] = b.leaves;
+    const h = 15 + Math.round(v * 6);
+    // тёмная «подложка» снизу и справа — объём; основной цвет; блики слева сверху
+    g.circle(1, -h + 1, 9).fill(d);
+    g.circle(-5, -h + 4, 6).fill(d);
+    g.circle(6, -h + 4, 6).fill(d);
+    g.circle(-1, -h - 1, 8).fill(m);
+    g.circle(-5, -h + 2, 5).fill(m);
+    g.circle(4, -h + 2, 5).fill(m);
+    g.circle(-3, -h - 3, 4).fill(l);
+    g.circle(-6, -h + 1, 2).fill(l);
+    g.rect(-4, -h - 6, 2, 1).fill(shade(l, 1.15));
+    // пара тёмных «просветов» в кроне
+    g.rect(2, -h + 1, 2, 1).fill(d);
+    g.rect(-2, -h + 4, 1, 1).fill(d);
+    return;
+  }
+  const [d, m, l] = b.pine;
+  const k = 1 + v * 0.35;
+  for (let i = 0; i < 3; i++) {
+    const by = -6 - Math.round(i * 6 * k), ty = by - Math.round(11 * k), w = 10 - i * 2;
+    g.poly([0, ty, w, by, 0, by + 1]).fill(d);
+    g.poly([0, ty, -w, by, 0, by + 1]).fill(m);
+    g.poly([0, ty + 2, -w + 3, by - 1, -w + 5, by - 1]).fill(l);
+  }
 }
 
 /** Цвет «головы» фонаря: [горит, погас]. */
@@ -147,22 +172,36 @@ export function isoBox(g: Graphics, w: number, d: number, h: number, left: numbe
   return { r, b, l };
 }
 
-export function drawHouse(g: Graphics, met: boolean) {
+export function drawHouse(g: Graphics, met: boolean, roof = ROOFS.home) {
   // рисуем от верхнего угла основания, а позицию ставим так, чтобы центр совпал с центром 2×2
   const H0 = 16;
-  const { r, b, l } = isoBox(g, 2, 2, H0, 0x8a6a4a, 0xa8825a, 0x6b4f36);
+  const { r, b, l } = isoBox(g, 2, 2, H0, 0xf2e2c2, 0xc8ae88, 0x6b4f36);
+  // цоколь из камня и угловой брус
+  g.poly([l.x, l.y, b.x, b.y, b.x, b.y - 3, l.x, l.y - 3]).fill(0xa49c90);
+  g.poly([b.x, b.y, r.x, r.y, r.x, r.y - 3, b.x, b.y - 3]).fill(0x7e776c);
+  g.rect(b.x - 1, b.y - H0, 2, H0 - 2).fill(0x6b4423);
+  g.poly([l.x, l.y - H0, b.x, b.y - H0, b.x, b.y - H0 + 2, l.x, l.y - H0 + 2]).fill(0x8a5a32);
+  g.poly([b.x, b.y - H0, r.x, r.y - H0, r.x, r.y - H0 + 2, b.x, b.y - H0 + 2]).fill(0x6b4423);
   const apex = { x: 0, y: b.y / 2 - H0 - 24 };
-  g.poly([0, -H0, l.x, l.y - H0, apex.x, apex.y]).fill(0x6a2420);
-  g.poly([r.x, r.y - H0, 0, -H0, apex.x, apex.y]).fill(0x7d2e28);
-  g.poly([l.x, l.y - H0 + 1, b.x, b.y - H0 + 1, apex.x, apex.y]).fill(0x9c3b32);
-  g.poly([b.x, b.y - H0 + 1, r.x, r.y - H0 + 1, apex.x, apex.y]).fill(0xb8483c);
+  g.poly([0, -H0, l.x, l.y - H0, apex.x, apex.y]).fill(shade(roof, 0.62));
+  g.poly([r.x, r.y - H0, 0, -H0, apex.x, apex.y]).fill(shade(roof, 0.72));
+  g.poly([l.x, l.y - H0 + 1, b.x, b.y - H0 + 1, apex.x, apex.y]).fill(roof);
+  g.poly([b.x, b.y - H0 + 1, r.x, r.y - H0 + 1, apex.x, apex.y]).fill(shade(roof, 0.8));
+  // светлый край крыши — со стороны света
+  g.poly([l.x, l.y - H0 + 1, apex.x, apex.y, apex.x + 1, apex.y + 2, l.x + 2, l.y - H0 + 1]).fill(shade(roof, 1.25));
   // дверь на левой стене, окно на правой
   const dx = (l.x + b.x) / 2, dy = (l.y + b.y) / 2;
-  g.poly([dx - 3, dy - 1.5, dx + 2, dy + 1, dx + 2, dy - 9, dx - 3, dy - 11.5]).fill(0x4a2e1a);
+  g.poly([dx - 4, dy - 2, dx + 3, dy + 1.5, dx + 3, dy - 10, dx - 4, dy - 13]).fill(0x5a3018);
+  g.poly([dx - 3, dy - 1.5, dx + 2, dy + 1, dx + 2, dy - 9, dx - 3, dy - 11.5]).fill(0x9a5a2c);
+  g.rect(dx + 1, dy - 5, 1, 1).fill(0xffd23a);
   const wx = (b.x + r.x) / 2, wy = (b.y + r.y) / 2;
-  const lit = met ? 0xffd27a : 0x22222e;
-  g.poly([wx - 3, wy - 5.5, wx + 3, wy - 8.5, wx + 3, wy - 13.5, wx - 3, wy - 10.5]).fill(0x3a2a1a);
+  const lit = met ? 0xffd27a : 0x2a3a5a;
+  g.poly([wx - 3, wy - 5.5, wx + 3, wy - 8.5, wx + 3, wy - 13.5, wx - 3, wy - 10.5]).fill(0xf0e6d0);
   g.poly([wx - 2, wy - 6.5, wx + 2, wy - 8.5, wx + 2, wy - 12.5, wx - 2, wy - 10.5]).fill(lit);
+  // ящик с цветами под окном
+  g.poly([wx - 3, wy - 4.5, wx + 3, wy - 7.5, wx + 3, wy - 5.5, wx - 3, wy - 2.5]).fill(0x8a5a32);
+  g.rect(wx - 2, wy - 6, 1, 1).fill(0xff7aa8);
+  g.rect(wx + 1, wy - 8, 1, 1).fill(0xffd23a);
 }
 
 export function drawPress(g: Graphics) {

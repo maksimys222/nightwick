@@ -2,7 +2,7 @@ import '@fontsource/pixelify-sans/cyrillic-400.css';
 import '@fontsource/pixelify-sans/400.css';
 import './style.css';
 import { Application } from 'pixi.js';
-import { st, update, world, boot, resetSave } from './game';
+import { st, update, world, boot, resetSave, startNight, lampCap } from './game';
 import { playIntro } from './cinema';
 import { Renderer } from './render';
 import { UI } from './ui';
@@ -72,4 +72,4 @@ const step = (n = 1) => {
   }
   app.render();
 };
-Object.assign(window, { st, world, sim, step, renderer, ui });
+Object.assign(window, { st, world, sim, step, renderer, ui, startNight, lampCap });

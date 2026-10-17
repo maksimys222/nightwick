@@ -12,6 +12,7 @@ import {
   drawHome, drawSleeper, drawFountain, drawStall, drawAnvil, drawEasel, drawSmoke,
 } from './draw';
 import type { View } from './render';
+import { BIOMES, GROUND, ROOFS } from './palette';
 
 interface Dyn { key: string; keyOf: () => string; draw: () => void }
 
@@ -59,7 +60,7 @@ export class NightView implements View {
     const w = this.w;
     for (const t of w.trees) {
       const g = new Graphics();
-      drawTree(g, t.v);
+      drawTree(g, t.v, bio(w, t.x, t.y));
       this.place(g, t.x + 0.5, t.y + 0.5);
     }
     const dyn = (keyOf: () => string, draw: () => void) => this.dyn.push({ key: '', keyOf, draw });
@@ -77,7 +78,7 @@ export class NightView implements View {
       const g = new Graphics();
       this.place(g, h.x, h.y, h.x + h.y + 2);
       const lit = () => this.main && st.met.includes(h.rid);
-      dyn(() => String(lit()), () => drawHouse(g.clear(), lit()));
+      dyn(() => String(lit()), () => drawHouse(g.clear(), lit(), ROOFS[h.rid]));
     }
     for (const pr of w.presses) {
       const g = new Graphics();
@@ -262,6 +263,10 @@ export class NightView implements View {
   }
 }
 
+/** Район клетки с «рваной» границей: соседние районы немного заходят друг в друга. */
+const bio = (w: World, x: number, y: number) =>
+  BIOMES[w.biome(x + Math.round((hash(x, y + 7) - 0.5) * 4), y + Math.round((hash(x + 3, y) - 0.5) * 4))];
+
 /** Доски моста поверх воды. Сломанный — с дырами. */
 function drawBridge(g: Graphics, w: World, fixed: boolean) {
   for (let y = 0; y < w.h; y++) {
@@ -293,7 +298,7 @@ function buildHorizon(w: World): [Graphics, Graphics] {
       const g = x < 0 || y < 0 ? back : front;
       const c = toScreen(x + 0.5, y + 0.5);
       g.translateTransform(c.x, c.y);
-      drawTree(g, hash(x, y + 5));
+      drawTree(g, hash(x, y + 5), bio(w, x, y));
       g.translateTransform(-c.x, -c.y);
     }
   }
@@ -310,34 +315,58 @@ function buildGround(w: World) {
       const t0 = at(x, y);
       const t = t0 === BRIDGE ? WATER : t0;
       const n = hash(x, y);
-      const color = t === WATER ? (n > 0.5 ? 0x2c6aa0 : 0x2a6498)
-        : t === PATH ? (n > 0.5 ? 0xc7a26a : 0xbf995f)
-        : t === STONE ? ((x + y) % 2 ? 0xb8ac98 : 0xaca08c)
-        : t === SAND ? (n > 0.5 ? 0xd8c088 : 0xd0b880)
-        : [0x3d7a3a, 0x427f3c, 0x39733a][Math.floor(n * 3)];
+      const color = t === WATER ? GROUND.water[n > 0.5 ? 0 : 1]
+        : t === PATH ? GROUND.path[n > 0.5 ? 0 : 1]
+        : t === STONE ? GROUND.stone[(x + y) & 1]
+        : t === SAND ? GROUND.sand[n > 0.5 ? 0 : 1]
+        : bio(w, x, y).grass[Math.floor(n * 3)];
       diamond(g, x, y, color);
     }
   }
-  // мелкие детали: травинки, камушки, блики на воде, швы брусчатки
+  // мелкие детали: травинки, цветы, кусты, камни, блики на воде, швы брусчатки
   for (let y = -M; y < H + M; y++) {
     for (let x = -M; x < W + M; x++) {
       const t = at(x, y);
       const c = toScreen(x + 0.5, y + 0.5);
+      const b = bio(w, x, y);
       for (let k = 0; k < 3; k++) {
         const n1 = hash(x * 3 + k, y * 7 - k), n2 = hash(y * 5 + k, x * 2 + k);
         const px = Math.round(c.x + (n1 - 0.5) * 16), py = Math.round(c.y + (n2 - 0.5) * 7);
-        if (t === GRASS && n1 > 0.3) g.rect(px, py, 1, 2).fill(n2 > 0.5 ? 0x5a9a4a : 0x2f6430);
-        if (t === PATH && n1 > 0.6) g.rect(px, py, 2, 1).fill(0xa8865a);
-        if (t === WATER && n1 > 0.7) g.rect(px, py, 3, 1).fill(0x5a9ad0);
-        if (t === STONE && n1 > 0.5) g.rect(px, py, 3, 1).fill(0x8a806e);
-        if (t === SAND && n1 > 0.7) g.rect(px, py, 1, 1).fill(0xb8a070);
+        if (t === GRASS && n1 > 0.3) {
+          // травинка «галочкой»: светлая сверху, тёмная у корня
+          const tc = b.tuft[n2 > 0.5 ? 0 : 1];
+          g.rect(px, py, 1, 2).fill(tc);
+          g.rect(px + 1, py - 1, 1, 2).fill(tc);
+        }
+        if (t === PATH && n1 > 0.6) g.rect(px, py, 2, 1).fill(GROUND.pathDot);
+        if (t === WATER && n1 > 0.7) g.rect(px, py, 3, 1).fill(GROUND.waterHi);
+        if (t === STONE && n1 > 0.4) g.rect(px, py, 3, 1).fill(GROUND.stoneSeam);
+        if (t === SAND && n1 > 0.7) g.rect(px, py, 1, 1).fill(GROUND.sandDot);
       }
-      if (t === GRASS && hash(x, y + 99) > 0.93) {
-        g.rect(c.x - 1, c.y - 1, 3, 3).fill(hash(x + 5, y) > 0.5 ? 0xe8e8f0 : 0xf0c040);
+      if (t !== GRASS) continue;
+      const r = hash(x, y + 99);
+      if (r > 0.9) {
+        // цветочек: лепестки крестиком и серединка
+        const fc = b.flowers[Math.floor(hash(x + 5, y) * b.flowers.length)];
+        g.rect(c.x - 1, c.y, 3, 1).fill(fc);
+        g.rect(c.x, c.y - 1, 1, 3).fill(fc);
+        g.rect(c.x, c.y, 1, 1).fill(0xffe070);
+      } else if (r > 0.86) {
+        // кустик
+        g.ellipse(c.x + 1, c.y + 2, 6, 2).fill({ color: 0x000000, alpha: 0.18 });
+        g.circle(c.x + 1, c.y - 1, 4).fill(b.leaves[0]);
+        g.circle(c.x, c.y - 2, 3).fill(b.leaves[1]);
+        g.rect(c.x - 2, c.y - 4, 2, 1).fill(b.leaves[2]);
+      } else if (r > 0.84) {
+        // камень
+        const [d, m, l] = GROUND.rock;
+        g.ellipse(c.x, c.y, 4, 2.5).fill(d);
+        g.ellipse(c.x - 1, c.y - 1, 3, 2).fill(m);
+        g.rect(c.x - 2, c.y - 2, 2, 1).fill(l);
       }
     }
   }
-  // берег у воды: светлая кромка
+  // берег у воды: обрыв земли (на свету и в тени) и белая пена у кромки
   const wet = (x: number, y: number) => at(x, y) === WATER || at(x, y) === BRIDGE;
   for (let y = -M; y < H + M; y++) {
     for (let x = -M; x < W + M; x++) {
@@ -345,8 +374,15 @@ function buildGround(w: World) {
       const up = !wet(x, y - 1);
       const left = !wet(x - 1, y);
       const s = toScreen(x, y);
-      if (up) g.poly([s.x, s.y, s.x + TW / 2, s.y + TH / 2, s.x + TW / 2 - 2, s.y + TH / 2 + 1, s.x - 2, s.y + 1]).fill(0x9ac8e8);
-      if (left) g.poly([s.x, s.y, s.x - TW / 2, s.y + TH / 2, s.x - TW / 2 + 2, s.y + TH / 2 + 1, s.x + 2, s.y + 1]).fill(0x9ac8e8);
+      const R = { x: s.x + TW / 2, y: s.y + TH / 2 }, L = { x: s.x - TW / 2, y: s.y + TH / 2 };
+      if (up) {
+        g.poly([s.x, s.y, R.x, R.y, R.x, R.y + 3, s.x, s.y + 3]).fill(GROUND.bankLit);
+        g.poly([s.x, s.y + 3, R.x, R.y + 3, R.x - 2, R.y + 4, s.x - 2, s.y + 4]).fill(GROUND.foam);
+      }
+      if (left) {
+        g.poly([s.x, s.y, L.x, L.y, L.x, L.y + 3, s.x, s.y + 3]).fill(GROUND.bankShade);
+        g.poly([s.x, s.y + 3, L.x, L.y + 3, L.x + 2, L.y + 4, s.x + 2, s.y + 4]).fill(GROUND.foam);
+      }
     }
   }
   return g;

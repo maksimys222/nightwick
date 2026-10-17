@@ -52,6 +52,8 @@ export interface World {
   start: { x: number; y: number };
   /** Что за краем карты: лес вокруг или ещё и море на востоке. */
   edge: 'forest' | 'sea-east';
+  /** Какой район в клетке (от него зависят цвета травы и деревьев). Можно и за краем карты. */
+  biome: (x: number, y: number) => District;
 }
 
 /** Точка у двери дома (дверь — на передней левой стене). */
@@ -104,6 +106,14 @@ const PRESSES = [{ x: 55, y: 50 }, { x: 18, y: 51 }];
 
 /** Ось реки: x в зависимости от y. */
 export const riverX = (y: number) => 30 + 4 * Math.sin(y / 9);
+
+/** Район по клетке: за рекой — деревня, на севере — город, на востоке — побережье. */
+export function districtAt(x: number, y: number): District {
+  if (x < riverX(y)) return 'village';
+  if (x >= 72 + 2 * Math.sin(y / 6)) return 'coast';
+  if (x >= 44 && y < 40 + 2 * Math.sin(x / 5)) return 'town';
+  return 'street';
+}
 
 function rng(seed: number) {
   return () => {
@@ -215,5 +225,5 @@ export function makeWorld(seed = 7): World {
 
   for (let i = 0; i < W * H; i++) if (ground[i] === WATER) block[i] = 1;
 
-  return { w: W, h: H, ground, block, trees, lamps, flowers, houses, presses: PRESSES, home: HOME, start, edge: 'sea-east' };
+  return { w: W, h: H, ground, block, trees, lamps, flowers, houses, presses: PRESSES, home: HOME, start, edge: 'sea-east', biome: districtAt };
 }

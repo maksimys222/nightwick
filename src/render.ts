@@ -14,7 +14,8 @@ import { makeLightTexture, drawSpark } from './draw';
 import { NightView } from './nightView';
 import { RoomView } from './roomView';
 
-const NIGHT = 0x0a0818;
+/** Цвет ночи: глубокий синий, а не чёрный — в темноте всё равно угадываются цвета. */
+const NIGHT = 0x0b0f30;
 
 /** То, что умеет сцена: мир, источники света, насколько темно, куда смотрит камера. */
 export interface View {
@@ -172,7 +173,7 @@ export class Renderer {
       });
     };
     sync(this.holes, 'erase', 0xffffff, 1, 1);
-    sync(this.glow, 'add', v.glowTint, 0.22, 0.8);
+    sync(this.glow, 'add', v.glowTint, 0.16, 0.8);
 
     // Искры: в экранных пикселях, координаты не округляем — летят плавно
     this.floatLayer.scale.set(this.scale);
