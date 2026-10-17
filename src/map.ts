@@ -34,6 +34,8 @@ export interface Lamp {
 export interface Flower { x: number; y: number; stage: number; grow: number }
 export interface House { x: number; y: number; rid: ResidentId }
 export interface Tree { x: number; y: number; v: number }
+/** Пруд: центр и радиус (в клетках) — на нём плавают утки. */
+export interface Pond { x: number; y: number; r: number }
 
 export interface World {
   w: number;
@@ -52,6 +54,8 @@ export interface World {
   start: { x: number; y: number };
   /** Что за краем карты: лес вокруг или ещё и море на востоке. */
   edge: 'forest' | 'sea-east';
+  /** Пруды с утками. */
+  ponds: Pond[];
   /** Какой район в клетке (от него зависят цвета травы и деревьев). Можно и за краем карты. */
   biome: (x: number, y: number) => District;
 }
@@ -67,8 +71,8 @@ export const DISTRICT_NAMES: Record<District, string> = {
 const LAMPS: [number, number, LampKind, District, string?][] = [
   // 0–12: улица у дома
   [57, 52, 'oil', 'street'], [57, 58, 'oil', 'street'], [52, 60, 'oil', 'street'], [63, 60, 'oil', 'street'],
-  [52, 53, 'oil', 'street'], [47, 49, 'oil', 'street'], [64, 47, 'oil', 'street'], [68, 54, 'oil', 'street'],
-  [69, 62, 'oil', 'street'], [58, 66, 'oil', 'street'], [46, 62, 'oil', 'street'], [42, 55, 'oil', 'street'],
+  [49, 56, 'oil', 'street'], [47, 49, 'oil', 'street'], [64, 47, 'oil', 'street'], [68, 54, 'oil', 'street'],
+  [69, 62, 'oil', 'street'], [61, 68, 'oil', 'street'], [45, 66, 'oil', 'street'], [42, 55, 'oil', 'street'],
   [36, 48, 'beacon', 'street', 'Маяк у моста'],
   // 13–19: деревня за рекой
   [21, 47, 'oil', 'village'], [16, 43, 'marsh', 'village'], [11, 49, 'oil', 'village'], [16, 56, 'oil', 'village'],
@@ -197,8 +201,44 @@ export function makeWorld(seed = 7): World {
 
   const houses: House[] = HOUSES.map(([rid, x, y]) => { reserve(x, y, 2, 2, true); return { x, y, rid }; });
 
-  // деревья: густой лес у краёв, редкие ёлки внутри, в городе почти нет
+  // пруды: ищем пустые поляны подальше от дорог, домов и друг от друга
+  const ponds: Pond[] = [];
+  const clearAround = (cx: number, cy: number, r: number) => {
+    for (let j = -r; j <= r; j++)
+      for (let i = -r; i <= r; i++) {
+        const x = cx + i, y = cy + j;
+        if (!inside(x, y) || ground[idx(x, y)] !== GRASS || reserved[idx(x, y)]) return false;
+      }
+    return true;
+  };
+  // кандидаты — пустые поляны; берём ближайшие к дому (их увидят), но не ближе 18 клеток друг к другу
+  const spots: { x: number; y: number }[] = [];
+  for (let y = 8; y < H - 8; y += 2)
+    for (let x = 8; x < W - 18; x += 2)
+      if (districtAt(x, y) !== 'town' && clearAround(x, y, 5) && Math.hypot(x - start.x, y - start.y) >= 8) spots.push({ x, y });
+  spots.sort((a, b) => Math.hypot(a.x - start.x, a.y - start.y) - Math.hypot(b.x - start.x, b.y - start.y));
+  for (const { x, y } of spots) {
+    if (ponds.length >= 3) break;
+    if (ponds.some((p) => Math.hypot(p.x - x, p.y - y) < 18)) continue;
+    const r = 2.2 + rand() * 0.8;
+    ponds.push({ x: x + 0.5, y: y + 0.5, r });
+    for (let j = -4; j <= 4; j++)
+      for (let i = -4; i <= 4; i++) {
+        const wob = 0.35 * Math.sin((i + j) * 1.7 + x);
+        if (Math.hypot(i, j * 1.1) <= r + wob) ground[idx(x + i, y + j)] = WATER;
+      }
+  }
+
+  // деревья: густой лес у краёв, внутри — рощи (кучками, с полянками), в городе почти нет
   const trees: Tree[] = [];
+  const grove = (x: number, y: number) => {
+    const v = Math.sin(x * 0.31 + y * 0.17) + Math.sin(x * 0.13 - y * 0.29 + 2) + Math.sin((x + y) * 0.07 + 5);
+    return Math.max(0, Math.min(1, (v + 1.2) / 3));
+  };
+  const keepClear = (x: number, y: number) =>
+    houses.some((h) => Math.hypot(h.x + 1 - x, h.y + 1 - y) < 3.2) ||
+    PRESSES.some((p) => Math.hypot(p.x - x, p.y - y) < 2.5) ||
+    ponds.some((p) => Math.hypot(p.x - x - 0.5, p.y - y - 0.5) < p.r + 1.6);
   const nearRoad = (x: number, y: number) => {
     for (let j = -1; j <= 1; j++)
       for (let i = -1; i <= 1; i++) {
@@ -215,7 +255,8 @@ export function makeWorld(seed = 7): World {
       if (Math.hypot(x + 0.5 - start.x, y + 0.5 - start.y) < 3) continue;
       const edge = Math.min(x, y, H - 1 - y, x < W - 20 ? W - 1 - x : 99);
       const town = x >= 46 && x < 70 && y >= 12 && y < 36;
-      const chance = edge < 4 ? 0.8 : town ? 0.05 : 0.17;
+      if (keepClear(x, y)) continue;
+      const chance = edge < 4 ? 0.8 : town ? 0.05 : 0.08 + 0.55 * grove(x, y);
       if (rand() < chance) {
         trees.push({ x, y, v: rand() });
         block[idx(x, y)] = 1;
@@ -225,5 +266,5 @@ export function makeWorld(seed = 7): World {
 
   for (let i = 0; i < W * H; i++) if (ground[i] === WATER) block[i] = 1;
 
-  return { w: W, h: H, ground, block, trees, lamps, flowers, houses, presses: PRESSES, home: HOME, start, edge: 'sea-east', biome: districtAt };
+  return { w: W, h: H, ground, block, trees, lamps, flowers, houses, presses: PRESSES, home: HOME, start, edge: 'sea-east', ponds, biome: districtAt };
 }

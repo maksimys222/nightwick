@@ -360,6 +360,24 @@ export function drawPerson(g: Graphics, face: number, anim: number, moving: bool
 }
 
 
+/** Утка на воде (0,0 — уровень воды). drake — селезень с зелёной головой, small — утёнок. */
+export function drawDuck(g: Graphics, t: number, kind: 'drake' | 'duck' | 'small') {
+  const k = kind === 'small' ? 0.6 : 1;
+  const body = kind === 'drake' ? 0xf0ece4 : kind === 'duck' ? 0x9a7a52 : 0xf0d060;
+  const shadeC = kind === 'drake' ? 0xc8c0b4 : kind === 'duck' ? 0x6e5434 : 0xc8a838;
+  const head = kind === 'drake' ? 0x2a7a4a : body;
+  const bob = Math.sin(t * 2.2) > 0 ? 0 : 0.5;
+  // круги на воде
+  g.ellipse(0, 0.5, 7 * k, 1.6 * k).fill({ color: 0xbfe8ff, alpha: 0.35 });
+  g.ellipse(0, -2 * k + bob, 4.5 * k, 2.3 * k).fill(body);
+  g.ellipse(-0.5, -1.2 * k + bob, 4 * k, 1.1 * k).fill(shadeC);
+  g.rect(-5 * k, -4 * k + bob, 2 * k, 1.2 * k).fill(shadeC);              // хвостик
+  g.circle(3 * k, -5 * k + bob, 1.9 * k).fill(head);                       // голова
+  if (kind === 'drake') g.rect(2 * k, -3.4 * k + bob, 2.5 * k, 0.8).fill(0xffffff); // белый ошейник
+  g.rect(4.4 * k, -5.2 * k + bob, 2 * k, 1.1 * k).fill(0xf0a030);          // клюв
+  g.rect(3.2 * k, -5.8 * k + bob, 0.8, 0.8).fill(0x1a1420);                 // глаз
+}
+
 // ---------- мебель мастерской (рисуется от верхнего угла основания) ----------
 
 /** Точка на передней (левой) грани коробки w×d: u — доля вдоль грани, v — высота. */

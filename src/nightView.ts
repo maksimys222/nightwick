@@ -8,7 +8,7 @@ import type { Plaza } from './plaza';
 import { st, lights, burning, lampCap, darkAlpha, has, KINDS } from './game';
 import { residentById, type ResidentId } from './story';
 import {
-  hash, diamond, drawTree, drawLamp, glassHeight, lampArt, drawFlower, drawHouse, drawPress, drawPerson, drawVillain, drawSpark,
+  hash, diamond, drawTree, drawLamp, drawDuck, glassHeight, lampArt, drawFlower, drawHouse, drawPress, drawPerson, drawVillain, drawSpark,
   drawHome, drawSleeper, drawFountain, drawStall, drawAnvil, drawEasel, drawSmoke,
 } from './draw';
 import type { View, Halo } from './render';
@@ -165,6 +165,31 @@ export class NightView implements View {
       if (p.kind === 'stall') drawStall(g);
       if (p.kind === 'anvil') drawAnvil(g);
       if (p.kind === 'easel') drawEasel(g);
+    }
+    // утки на прудах: мама впереди, утята следом, селезень плавает сам по себе
+    for (const [pi, pond] of this.w.ponds.entries()) {
+      const flock: { g: Graphics; kind: 'drake' | 'duck' | 'small'; lag: number; rr: number }[] = [
+        { g: new Graphics(), kind: 'duck', lag: 0, rr: 0.55 },
+        { g: new Graphics(), kind: 'small', lag: 0.35, rr: 0.55 },
+        { g: new Graphics(), kind: 'small', lag: 0.62, rr: 0.55 },
+        { g: new Graphics(), kind: 'drake', lag: 2.6, rr: 0.3 },
+      ];
+      for (const d of flock) this.objects.addChild(d.g);
+      this.anim.push(() => {
+        const t = st.time;
+        for (const d of flock) {
+          const dir = d.kind === 'drake' ? -1 : 1;
+          const a = (t * 0.25 + pi * 2) * dir - d.lag;
+          const x = pond.x + Math.cos(a) * pond.r * d.rr, y = pond.y + Math.sin(a) * pond.r * d.rr * 0.9;
+          const s = toScreen(x, y);
+          // смотрит туда, куда плывёт (по экрану)
+          const vx = -Math.sin(a) * dir - Math.cos(a) * dir * 0.9;
+          drawDuck(d.g.clear(), t + d.lag * 3, d.kind);
+          d.g.scale.x = vx >= 0 ? 1 : -1;
+          d.g.position.set(Math.round(s.x), Math.round(s.y));
+          d.g.zIndex = (x + y) * 10;
+        }
+      });
     }
     this.objects.addChild(this.player, this.compass);
     this.compass.zIndex = 1e6;
@@ -405,17 +430,48 @@ function buildGround(w: World) {
         }
         if (t === PATH && n1 > 0.6) g.rect(px, py, 2, 1).fill(GROUND.pathDot);
         if (t === WATER && n1 > 0.7) g.rect(px, py, 3, 1).fill(GROUND.waterHi);
+        // кувшинки на прудах
+        if (t === WATER && k === 0 && n2 > 0.78 && w.ponds.some((p) => Math.hypot(p.x - x - 0.5, p.y - y - 0.5) < p.r - 0.3)) {
+          g.ellipse(px, py, 3, 1.5).fill(0x3a8a3a);
+          g.rect(px, py - 1, 2, 1).fill(0x2aa6bc);
+          if (n1 > 0.85) { g.rect(px - 1, py - 2, 2, 1).fill(0xffa8c8); g.rect(px - 1, py - 3, 1, 1).fill(0xffffff); }
+        }
         if (t === STONE && n1 > 0.4) g.rect(px, py, 3, 1).fill(GROUND.stoneSeam);
         if (t === SAND && n1 > 0.7) g.rect(px, py, 1, 1).fill(GROUND.sandDot);
       }
       if (t !== GRASS) continue;
       const r = hash(x, y + 99);
+      const pondDist = w.ponds.reduce((m, p) => Math.min(m, Math.hypot(p.x - x - 0.5, p.y - y - 0.5) - p.r), 99);
+      if (pondDist < 1.4 && hash(x + 9, y + 2) > 0.35) {
+        // камыш у пруда: тонкие стебли и коричневые «сосиски»
+        for (const [dx, h] of [[-3, 9], [0, 12], [3, 8]] as const) {
+          g.rect(c.x + dx, c.y - h, 1, h).fill(0x3e7a34);
+          g.rect(c.x + dx, c.y - h - 3, 1, 3).fill(0x7a4a26);
+        }
+        g.poly([c.x - 5, c.y, c.x - 2, c.y - 6, c.x - 1, c.y]).fill(0x5a9a3a);
+        continue;
+      }
       if (r > 0.9) {
-        // цветочек: лепестки крестиком и серединка
-        const fc = b.flowers[Math.floor(hash(x + 5, y) * b.flowers.length)];
-        g.rect(c.x - 1, c.y, 3, 1).fill(fc);
-        g.rect(c.x, c.y - 1, 1, 3).fill(fc);
-        g.rect(c.x, c.y, 1, 1).fill(0xffe070);
+        const kind = hash(x + 5, y);
+        if (kind < 0.45) {
+          // одуванчик: стебелёк, листики-зубчики, жёлтая головка
+          g.rect(c.x, c.y - 4, 1, 4).fill(0x3e8a34);
+          g.rect(c.x - 2, c.y - 1, 2, 1).fill(0x4caf40);
+          g.rect(c.x + 1, c.y - 2, 2, 1).fill(0x4caf40);
+          g.rect(c.x - 1, c.y - 6, 3, 2).fill(0xffd23a);
+          g.rect(c.x, c.y - 7, 1, 1).fill(0xfff07a);
+        } else if (kind < 0.7) {
+          // отцветший одуванчик — белый пушистый шарик
+          g.rect(c.x, c.y - 4, 1, 4).fill(0x3e8a34);
+          g.circle(c.x + 0.5, c.y - 6, 2).fill({ color: 0xffffff, alpha: 0.85 });
+          g.rect(c.x, c.y - 6, 1, 1).fill(0xd8d8c8);
+        } else {
+          // цветочек: лепестки крестиком и серединка
+          const fc = b.flowers[Math.floor(hash(x + 7, y) * b.flowers.length)];
+          g.rect(c.x - 1, c.y, 3, 1).fill(fc);
+          g.rect(c.x, c.y - 1, 1, 3).fill(fc);
+          g.rect(c.x, c.y, 1, 1).fill(0xffe070);
+        }
       } else if (r > 0.86) {
         // кустик
         g.ellipse(c.x + 1, c.y + 2, 6, 2).fill({ color: 0x000000, alpha: 0.18 });
