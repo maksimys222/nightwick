@@ -197,6 +197,16 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
 #sky[data-state='dark'] #sun .eye { height: 0.5vh; top: 5.6vh; background: #6a3aa0; }
 #sky[data-state='dark'] #sun .mouth { border-bottom-color: #6a3aa0; transform: scaleY(-1); top: 9vh; }
 
+/* облака плывут по дневному небу; когда солнце гаснет — тают */
+.clouds { position: absolute; inset: 0; overflow: hidden; transition: opacity 3s; }
+#sky[data-state='dark'] .clouds { opacity: 0; }
+.clouds i { position: absolute; left: -30%; background: center / contain no-repeat; image-rendering: pixelated; animation: cloud-drift linear infinite; opacity: 0.95; }
+.clouds .c1 { top: 4vh; width: 192px; height: 72px; background-image: url('../art/examples/ui/cloud_1.png'); animation-duration: 95s; animation-delay: -20s; }
+.clouds .c2 { top: 16vh; width: 132px; height: 54px; background-image: url('../art/examples/ui/cloud_2.png'); animation-duration: 120s; animation-delay: -75s; }
+.clouds .c3 { top: 9vh; width: 264px; height: 84px; background-image: url('../art/examples/ui/cloud_3.png'); animation-duration: 140s; animation-delay: -100s; }
+.clouds .c4 { top: 24vh; width: 132px; height: 54px; background-image: url('../art/examples/ui/cloud_2.png'); animation-duration: 110s; animation-delay: -30s; opacity: 0.8; }
+.clouds .c5 { top: 2vh; width: 192px; height: 72px; background-image: url('../art/examples/ui/cloud_1.png'); animation-duration: 130s; animation-delay: -55s; opacity: 0.85; }
+@keyframes cloud-drift { from { transform: translateX(0); } to { transform: translateX(160vw); } }
 #fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; }
 #skip {
   position: fixed; right: 16px; bottom: 14px; font: inherit; font-size: 15px; color: var(--dim);

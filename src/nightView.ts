@@ -396,16 +396,25 @@ function buildHorizon(w: World): [Graphics, Graphics] {
   back.zIndex = -1e6;
   front.zIndex = 1e6;
   const M = 14;
+  // за краем карты — сплошной лес: по два дерева на клетку, рисуем от дальних к ближним
+  const spots: { x: number; y: number; v: number; bx: number; by: number }[] = [];
   for (let y = -M; y < w.h + M; y++) {
     for (let x = -M; x < w.w + M; x++) {
       if (x >= 0 && y >= 0 && x < w.w && y < w.h) continue;
-      if (outsideGround(w, x, y) !== GRASS || hash(x + 300, y - 70) > 0.8) continue;
-      const g = x < 0 || y < 0 ? back : front;
-      const c = toScreen(x + 0.5, y + 0.5);
-      g.translateTransform(c.x, c.y);
-      drawTree(g, hash(x, y + 5), bio(w, x, y));
-      g.translateTransform(-c.x, -c.y);
+      if (outsideGround(w, x, y) !== GRASS) continue;
+      for (const [ox, oy] of [[0.25, 0.3], [0.75, 0.7]]) {
+        const jx = (hash(x * 3 + ox * 10, y) - 0.5) * 0.3, jy = (hash(y * 5, x + oy * 10) - 0.5) * 0.3;
+        spots.push({ x: x + ox + jx, y: y + oy + jy, v: hash(x + ox * 7, y + 5 + oy), bx: x, by: y });
+      }
     }
+  }
+  spots.sort((a, b) => a.x + a.y - (b.x + b.y));
+  for (const p of spots) {
+    const g = p.bx < 0 || p.by < 0 ? back : front;
+    const c = toScreen(p.x, p.y);
+    g.translateTransform(c.x, c.y);
+    drawTree(g, p.v, bio(w, p.bx, p.by));
+    g.translateTransform(-c.x, -c.y);
   }
   return [back, front];
 }

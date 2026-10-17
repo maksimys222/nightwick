@@ -49,7 +49,6 @@ export function makePlaza(): Plaza {
     for (let x = 0; x < w; x++) {
       const edge = Math.min(x, y, w - 1 - x, h - 1 - y);
       if (edge > 0 || block[idx(x, y)] || ground[idx(x, y)] !== GRASS) continue;
-      if ((x * 7 + y * 13) % 3 === 0) continue;
       trees.push({ x, y, v: ((x * 31 + y * 17) % 10) / 10 });
       solid(x, y, 1, 1);
     }
