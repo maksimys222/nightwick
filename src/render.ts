@@ -10,12 +10,25 @@ import { Application, Container, Graphics, RenderTexture, Sprite } from 'pixi.js
 import { toScreen, isoEllipse } from './iso';
 import { st, world, type Light, type Scene } from './game';
 import { makePlaza } from './plaza';
-import { makeLightTexture, drawSpark } from './draw';
+import { makeLightTexture, makeHaloTexture, drawSpark } from './draw';
 import { NightView } from './nightView';
 import { RoomView } from './roomView';
 
 /** Цвет ночи: глубокий синий, а не чёрный — в темноте всё равно угадываются цвета. */
 const NIGHT = 0x0b0f30;
+
+/** Ореол вокруг стекла горящего фонаря (рисуется поверх тьмы — как свечение в воздухе). */
+export interface Halo {
+  x: number; y: number;
+  /** Высота стекла над землёй, в пикселях. */
+  lift: number;
+  tint: number; id: number;
+  /** 1 → 0 за первые мгновения после зажигания: вспышка. */
+  flash: number;
+  /** 0..1 — масла почти нет, огонь «чихает». */
+  low: number;
+  size: number;
+}
 
 /** То, что умеет сцена: мир, источники света, насколько темно, куда смотрит камера. */
 export interface View {
@@ -27,6 +40,7 @@ export interface View {
   focus(): { x: number; y: number };
   /** Где летают искорки (их рисует Renderer поверх мира, с плавными координатами). */
   sparks(): { x: number; y: number; alpha: number }[];
+  halos(): Halo[];
   update(): void;
 }
 
@@ -47,6 +61,7 @@ export class Renderer {
   private darkCam = new Container();
   private holes = new Container();
   private lightTex = makeLightTexture();
+  private haloTex = makeHaloTexture();
   private camPos = { x: 0, y: 0 };
   /** Точный сдвиг мира на экране (в маленьких пикселях, может быть дробным). */
   private off = { x: 0, y: 0 };
@@ -56,11 +71,14 @@ export class Renderer {
   /** Слой поверх тьмы в экранных пикселях: то, что должно двигаться плавно (Искра). */
   private floatLayer = new Container();
   private sparkGs: Graphics[] = [];
+  private haloLayer = new Container();
+  private moths = new Graphics();
 
   constructor(private app: Application) {
     this.worldRoot.addChild(this.cam);
     this.darkRoot.addChild(this.darkFill, this.darkCam);
     app.stage.addChild(this.worldSprite, this.darkSprite, this.floatLayer);
+    this.floatLayer.addChild(this.haloLayer, this.moths);
     this.resize();
   }
 
@@ -162,7 +180,7 @@ export class Renderer {
         if (!L) return;
         (s as Sprite).tint = blend === 'add' ? L.tint ?? tint : tint;
         // цветные фонари светятся заметнее
-        if (blend === 'add') s.alpha = L.tint && L.tint !== tint ? 0.38 : alpha;
+        if (blend === 'add') s.alpha = L.tint && L.tint !== tint ? 0.28 : alpha;
         const flick = 1 + 0.03 * Math.sin(t * 9 + L.id * 1.7) + 0.02 * Math.sin(t * 23 + L.id);
         const e = isoEllipse(L.r * flick * mul);
         const pos = toScreen(L.x, L.y);
@@ -178,6 +196,7 @@ export class Renderer {
     // Искры: в экранных пикселях, координаты не округляем — летят плавно
     this.floatLayer.scale.set(this.scale);
     this.floatLayer.position.set(this.off.x * this.scale, this.off.y * this.scale);
+    this.drawHalos(v.halos(), t);
     const sp = v.sparks();
     while (this.sparkGs.length < sp.length) this.sparkGs.push(this.floatLayer.addChild(new Graphics()));
     this.sparkGs.forEach((g, i) => {
@@ -194,4 +213,59 @@ export class Renderer {
     r.render({ container: this.worldRoot, target: this.worldRT, clear: true, clearColor: [0, 0, 0, 1] });
     r.render({ container: this.darkRoot, target: this.darkRT, clear: true, clearColor: [0, 0, 0, 0] });
   }
+
+  /**
+   * Свечение фонарей: мягкий ореол цвета огня, яркое ядро у стекла, вспышка при зажигании
+   * и мотыльки, которые кружат у света. Всё поверх тьмы, с плавными координатами.
+   */
+  private drawHalos(hs: Halo[], t: number) {
+    const per = 3;
+    while (this.haloLayer.children.length < hs.length * per) {
+      const s = new Sprite(this.haloTex);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      this.haloLayer.addChild(s);
+    }
+    const kids = this.haloLayer.children as Sprite[];
+    kids.forEach((s, i) => { s.visible = i < hs.length * per; });
+    const m = this.moths.clear();
+    hs.forEach((h, i) => {
+      const p = toScreen(h.x, h.y);
+      const x = Math.round(p.x), y = Math.round(p.y) - h.lift;
+      // живое пламя: лёгкое дыхание; когда масла мало — резкие провалы
+      let f = 1 + 0.07 * Math.sin(t * 9 + h.id * 1.7) + 0.05 * Math.sin(t * 23 + h.id);
+      if (h.low > 0 && Math.sin(t * 31 + h.id * 3) > 0.2) f *= 1 - 0.6 * h.low;
+      const white = mix(h.tint, 0xffffff, 0.55);
+      const [outer, core, burst] = [kids[i * per], kids[i * per + 1], kids[i * per + 2]];
+      const R = 40 * h.size * f * (1 + h.flash * 0.6);
+      outer.position.set(x, y);
+      outer.width = outer.height = R;
+      outer.tint = h.tint;
+      outer.alpha = 0.55 * (1 + h.flash * 0.8);
+      core.position.set(x, y);
+      core.width = core.height = 14 * h.size * f;
+      core.tint = white;
+      core.alpha = 0.7;
+      // вспышка: круг света быстро разлетается и тает
+      burst.visible = h.flash > 0;
+      burst.position.set(x, y);
+      burst.width = burst.height = 24 + (1 - h.flash) * 70;
+      burst.tint = white;
+      burst.alpha = h.flash * 0.7;
+      // два мотылька у стекла
+      for (let k = 0; k < 2; k++) {
+        const a = t * (2.1 + k * 0.9) + h.id * 2.3 + k * 3;
+        const r = 6 + 3 * Math.sin(t * 1.3 + k + h.id);
+        const mx = x + Math.cos(a) * r, my = y - 1 + Math.sin(a * 1.6) * r * 0.55;
+        const wing = Math.sin(t * 38 + k * 2 + h.id) > 0 ? 2 : 1;
+        m.rect(mx - wing / 2, my, wing, 1).fill({ color: 0xfff4dc, alpha: 0.9 });
+      }
+    });
+  }
+}
+
+/** Смешать два цвета: k = 0 — первый, 1 — второй. */
+function mix(a: number, b: number, k: number) {
+  const c = (sh: number) => Math.round(((a >> sh) & 255) * (1 - k) + ((b >> sh) & 255) * k);
+  return (c(16) << 16) | (c(8) << 8) | c(0);
 }

@@ -38,6 +38,24 @@ export function makeLightTexture() {
   return Texture.from(c);
 }
 
+/** Ореол у стекла: яркий центр и быстрый спад, ступеньками — свечение в воздухе. */
+export function makeHaloTexture() {
+  const n = 64;
+  const c = document.createElement('canvas');
+  c.width = c.height = n;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(n, n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const d = Math.min(1, Math.hypot(x - n / 2 + 0.5, y - n / 2 + 0.5) / (n / 2));
+      const a = Math.floor(Math.pow(1 - d, 2.4) * 7) / 6; // 6 ступенек, край тает в ноль
+      img.data.set([255, 255, 255, a * 255], (y * n + x) * 4);
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return Texture.from(c);
+}
+
 // ---------- заглушки объектов (рисуются вокруг точки 0,0 = центр тайла) ----------
 
 /** Дерево: круглое пушистое или ёлка — смотря какой район. v — случайное число дерева 0..1. */
@@ -74,17 +92,59 @@ export function drawTree(g: Graphics, v: number, b: Biome = BIOMES.street) {
   }
 }
 
-/** Цвет «головы» фонаря: [горит, погас]. */
-const HEAD: Record<string, [number, number]> = {
-  oil: [0xffe08a, 0x2b2b3a], gas: [0xb8e0ff, 0x2a3a5a], stubborn: [0xff8a6a, 0x4a2020],
-  marsh: [0x9affb0, 0x1e3a28], beacon: [0xffffff, 0x3a3a44],
+/** Стекло фонаря: [кайма, середина, раскалённое ядро] когда горит, и цвет тёмного стекла. */
+const GLASS: Record<string, { on: [number, number, number]; off: number }> = {
+  oil: { on: [0xff9a2a, 0xffd36b, 0xfff6d8], off: 0x2b2b3a },
+  gas: { on: [0x5a9aff, 0xb8e0ff, 0xffffff], off: 0x2a3a5a },
+  stubborn: { on: [0xff4a2a, 0xff8a6a, 0xffe2c8], off: 0x4a2020 },
+  marsh: { on: [0x2ac868, 0x9affb0, 0xeafff0], off: 0x1e3a28 },
+  beacon: { on: [0xffc040, 0xfff0b0, 0xffffff], off: 0x3a3a44 },
 };
 
-export function drawLamp(g: Graphics, l: Lamp) {
+/** На какой высоте (пикселей от земли) центр стекла — там рисуется ореол. */
+export function glassHeight(l: Lamp) {
+  if (l.kind === 'beacon') return l.name === 'Старый маяк' ? 58 : 40;
+  return l.kind === 'gas' ? 26 : l.kind === 'marsh' ? 21 : 24;
+}
+
+/** Имя картинки художника для фонаря: lamp_oil_on, beacon_off, lighthouse_on… */
+export function lampArt(l: Lamp, on: boolean) {
+  const base = l.kind === 'beacon' ? (l.name === 'Старый маяк' ? 'lighthouse' : 'beacon') : `lamp_${l.kind}`;
+  return `${base}_${on ? 'on' : 'off'}`;
+}
+
+/** Стекло 3 тонами: кайма, середина, белое ядро и блик — так кажется, что внутри огонь. */
+function glass(g: Graphics, x: number, y: number, w: number, h: number, kind: string, on: boolean) {
+  const G = GLASS[kind];
+  if (!on) {
+    g.rect(x, y, w, h).fill(G.off);
+    g.rect(x, y, 1, 1).fill(0x6a7aa0); // отблеск луны на холодном стекле
+    return;
+  }
+  const [edge, mid, core] = G.on;
+  g.rect(x, y, w, h).fill(edge);
+  g.rect(x + 1, y + 1, w - 2, h - 1).fill(mid);
+  g.rect(x + Math.floor(w / 2) - 1, y + Math.floor(h / 2), 2, 2).fill(core);
+}
+
+/** Фонарь. overlay — только то, что поверх картинки художника: полоска масла и тлеющая искра. */
+export function drawLamp(g: Graphics, l: Lamp, overlay = false) {
   const on = burning(l);
-  const [hOn, hOff] = HEAD[l.kind];
-  const head = on ? hOn : hOff;
+  if (!overlay) drawLampBody(g, l, on);
+  // тлеющая искра после первого захода (упрямый)
+  if (l.kindled > 0) { g.rect(-1, -24, 1, 1).fill(0xffb040); g.rect(1, -26, 1, 1).fill(0xff8020); }
+  // полоска масла
+  if (l.everLit && l.kind !== 'marsh' && l.kind !== 'beacon') {
+    const k = l.oil / lampCap(l);
+    g.rect(-6, -40, 12, 3).fill(0x111118);
+    if (k > 0) g.rect(-5, -39, Math.max(1, Math.round(10 * k)), 1).fill(k < 0.25 ? 0xe05040 : 0xf0b040);
+  }
+}
+
+function drawLampBody(g: Graphics, l: Lamp, on: boolean) {
   g.ellipse(0, 1, 5, 2).fill({ color: 0x000000, alpha: 0.3 });
+  // металл ловит отсвет огня: левый край столба и рамки тёплый, когда фонарь горит
+  const rim = on ? 0x6a5a58 : 0x3a4060;
 
   if (l.kind === 'beacon') {
     // каменная башенка; «Старый маяк» — высокий, в красно-белую полоску
@@ -92,12 +152,12 @@ export function drawLamp(g: Graphics, l: Lamp) {
     const h = tall ? 52 : 34;
     g.ellipse(0, 1, 9, 3.5).fill({ color: 0x000000, alpha: 0.35 });
     g.poly([-7, 0, 7, 0, 5, -h, -5, -h]).fill(tall ? 0xe8e0d8 : 0x8a8078);
+    g.poly([1, 0, 7, 0, 5, -h, 1, -h]).fill(tall ? 0xc8beb4 : 0x6e665e);
     if (tall) for (let y = -10; y > -h; y -= 14) g.poly([-7 + (-y / h) * 2, y, 7 - (-y / h) * 2, y, 6.6 - (-y / h) * 2, y - 6, -6.6 + (-y / h) * 2, y - 6]).fill(0xc83a32);
-    else for (let y = -6; y > -h; y -= 7) g.rect(-5, y, 10, 1).fill(0x6a625a);
+    else for (let y = -6; y > -h; y -= 7) g.rect(-5, y, 10, 1).fill(0x5a524a);
     g.rect(-6, -h - 2, 12, 2).fill(0x2a2a38);
     g.rect(-4, -h - 9, 8, 7).fill(0x2a2a38);
-    g.rect(-3, -h - 8, 6, 5).fill(head);
-    if (on) g.rect(-1, -h - 7, 2, 2).fill(0xffffff);
+    glass(g, -3, -h - 8, 6, 5, 'beacon', on);
     g.poly([-5, -h - 9, 0, -h - 14, 5, -h - 9]).fill(0x2a2a38);
     return;
   }
@@ -105,35 +165,28 @@ export function drawLamp(g: Graphics, l: Lamp) {
   if (l.kind === 'marsh') {
     // кривой деревянный шест с зелёным шаром
     g.poly([-1, 0, 1, 0, 2, -10, 0, -18, -2, -18, 0, -10]).fill(0x5a4a2a);
-    g.circle(-1, -21, 3.5).fill(head);
-    if (on) g.circle(-1, -21, 1.5).fill(0xffffff);
+    g.circle(-1, -21, 3.5).fill(on ? GLASS.marsh.on[0] : GLASS.marsh.off);
+    if (on) { g.circle(-1, -21, 2.5).fill(GLASS.marsh.on[1]); g.rect(-2, -22, 2, 2).fill(GLASS.marsh.on[2]); }
+    else g.rect(-3, -23, 1, 1).fill(0x6a8aa0);
     g.rect(-5, -16, 3, 1).fill(0x3a7a3a);
   } else if (l.kind === 'gas') {
     // чугунный столб с узором и большим плафоном
     g.rect(-2, -2, 4, 3).fill(0x1d2030);
     g.rect(-1, -22, 2, 21).fill(0x2a3048);
+    g.rect(-1, -22, 1, 21).fill(rim);
     g.rect(-3, -12, 6, 1).fill(0x3a4060);
     g.poly([-4, -22, 5, -22, 4, -30, -3, -30]).fill(0x1d2030);
-    g.poly([-3, -23, 4, -23, 3, -29, -2, -29]).fill(head);
-    if (on) g.rect(0, -27, 2, 2).fill(0xffffff);
+    glass(g, -2, -29, 5, 6, 'gas', on);
     g.poly([-5, -30, 0.5, -34, 6, -30]).fill(0x1d2030);
   } else {
     // обычный и упрямый (у упрямого — ставни от ветра)
     g.rect(-2, -2, 4, 3).fill(0x1d1d28);
     g.rect(-1, -20, 2, 19).fill(l.kind === 'stubborn' ? 0x4a2a2a : 0x2a2a38);
+    g.rect(-1, -20, 1, 19).fill(rim);
     g.rect(-3, -27, 7, 7).fill(0x1d1d28);
-    g.rect(-2, -26, 5, 5).fill(head);
-    if (on) g.rect(-1, -25, 2, 2).fill(0xffffff);
+    glass(g, -2, -26, 5, 5, l.kind, on);
     if (l.kind === 'stubborn') { g.rect(-5, -27, 2, 7).fill(0x6a3020); g.rect(4, -27, 2, 7).fill(0x6a3020); }
     g.poly([-4, -27, 0.5, -31, 5, -27]).fill(0x1d1d28);
-  }
-  // тлеющая искра после первого захода (упрямый)
-  if (l.kindled > 0) { g.rect(-1, -24, 1, 1).fill(0xffb040); g.rect(1, -26, 1, 1).fill(0xff8020); }
-  // полоска масла
-  if (l.everLit && l.kind !== 'marsh') {
-    const k = l.oil / lampCap(l);
-    g.rect(-6, -40, 12, 3).fill(0x111118);
-    if (k > 0) g.rect(-5, -39, Math.max(1, Math.round(10 * k)), 1).fill(k < 0.25 ? 0xe05040 : 0xf0b040);
   }
 }
 

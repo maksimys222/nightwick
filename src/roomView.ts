@@ -31,6 +31,7 @@ export class RoomView implements View {
   }
 
   darkAlpha() { return 0.5; }
+  halos() { return []; }
   sparks() { return [{ x: st.spark.x, y: st.spark.y, alpha: 1 }]; }
 
   lights(): Light[] {

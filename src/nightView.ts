@@ -5,13 +5,14 @@ import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { TW, TH, toScreen } from './iso';
 import { GRASS, PATH, WATER, STONE, SAND, BRIDGE, homeDoor, outsideGround, type World } from './map';
 import type { Plaza } from './plaza';
-import { st, lights, burning, lampCap, darkAlpha, has } from './game';
+import { st, lights, burning, lampCap, darkAlpha, has, KINDS } from './game';
 import { residentById, type ResidentId } from './story';
 import {
-  hash, diamond, drawTree, drawLamp, drawFlower, drawHouse, drawPress, drawPerson, drawVillain, drawSpark,
+  hash, diamond, drawTree, drawLamp, glassHeight, lampArt, drawFlower, drawHouse, drawPress, drawPerson, drawVillain, drawSpark,
   drawHome, drawSleeper, drawFountain, drawStall, drawAnvil, drawEasel, drawSmoke,
 } from './draw';
-import type { View } from './render';
+import type { View, Halo } from './render';
+import { art } from './sprites';
 import { BIOMES, GROUND, ROOFS } from './palette';
 
 interface Dyn { key: string; keyOf: () => string; draw: () => void }
@@ -40,7 +41,30 @@ export class NightView implements View {
     this.build();
   }
 
+  /** Когда фонарь зажёгся (секунды игры) — для вспышки при зажигании. */
+  private litAt = new Map<number, number>();
+  private wasLit = new Set<number>();
+
   darkAlpha = darkAlpha;
+
+  /** Ореолы вокруг стёкол горящих фонарей. */
+  halos(): Halo[] {
+    const out: Halo[] = [];
+    for (const l of this.w.lamps) {
+      const on = burning(l);
+      if (on && !this.wasLit.has(l.id)) { this.wasLit.add(l.id); this.litAt.set(l.id, st.time); }
+      if (!on) { this.wasLit.delete(l.id); continue; }
+      const since = st.time - (this.litAt.get(l.id) ?? -9);
+      // мало масла — огонь «чихает»: ореол дрожит сильнее
+      const low = KINDS[l.kind].drain ? Math.max(0, 1 - l.oil / (lampCap(l) * 0.25)) : 0;
+      out.push({
+        x: l.x + 0.5, y: l.y + 0.5, lift: glassHeight(l) + (l.kind === 'marsh' ? 0 : 0.5),
+        tint: KINDS[l.kind].tint, id: l.id, flash: Math.max(0, 1 - since / 0.7), low,
+        size: l.kind === 'beacon' ? 1.5 : 1,
+      });
+    }
+    return out;
+  }
   lights = lights;
   focus() { return st.cine ? st.cine.cam : { x: st.player.x, y: st.player.y }; }
   /** Искру рисует Renderer поверх мира — так она летает плавно, без пиксельных скачков. */
@@ -49,7 +73,7 @@ export class NightView implements View {
     return this.main ? [{ x: st.spark.x, y: st.spark.y, alpha: 1 }] : [];
   }
 
-  private place(g: Graphics, x: number, y: number, z = x + y) {
+  private place(g: Container, x: number, y: number, z = x + y) {
     const s = toScreen(x, y);
     g.position.set(Math.round(s.x), Math.round(s.y));
     g.zIndex = z * 10;
@@ -65,9 +89,22 @@ export class NightView implements View {
     }
     const dyn = (keyOf: () => string, draw: () => void) => this.dyn.push({ key: '', keyOf, draw });
     for (const l of w.lamps) {
+      // картинка художника (если уже есть) + поверх неё полоска масла; иначе — заглушка кодом
+      const c = new Container();
+      const pic = new Sprite();
       const g = new Graphics();
-      this.place(g, l.x + 0.5, l.y + 0.5);
-      dyn(() => `${burning(l)}|${l.everLit}|${l.kindled > 0}|${Math.round((l.oil / lampCap(l)) * 10)}`, () => drawLamp(g.clear(), l));
+      c.addChild(pic, g);
+      this.place(c, l.x + 0.5, l.y + 0.5);
+      dyn(() => `${burning(l)}|${l.everLit}|${l.kindled > 0}|${Math.round((l.oil / lampCap(l)) * 10)}`, () => {
+        const t = art(lampArt(l, burning(l)));
+        pic.visible = !!t;
+        if (t) {
+          pic.texture = t;
+          // точка опоры шаблона — низ по центру, во второй строке снизу
+          pic.position.set(-Math.floor(t.width / 2), -(t.height - 2));
+        }
+        drawLamp(g.clear(), l, !!t);
+      });
     }
     for (const f of w.flowers) {
       const g = new Graphics();

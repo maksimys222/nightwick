@@ -7,6 +7,7 @@ import { playIntro } from './cinema';
 import { Renderer } from './render';
 import { UI } from './ui';
 import { unlock } from './audio';
+import { loadArt } from './sprites';
 
 const keys = new Set<string>();
 // e.code — физическая клавиша, поэтому WASD работает и на русской раскладке
@@ -25,6 +26,7 @@ const app = new Application();
 await app.init({ resizeTo: window, antialias: false, background: '#000000', resolution: 1 });
 document.getElementById('screen')!.appendChild(app.canvas);
 
+await loadArt();
 const hasSave = boot();
 const AUTOSTART = 'lamplighter-autostart';
 const renderer = new Renderer(app);
