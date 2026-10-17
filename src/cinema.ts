@@ -48,13 +48,13 @@ export async function playIntro() {
       actor('timofey', 4.5, 11.5),
       actor('nika', 12.4, 9.4),
       actor('filin', 6.6, 3.8),
-      actor('seva', 8.5, 15),
+      actor('seva', -0.6, 13.8),
     ],
   });
   let c = st.cine;
 
   await wait(1.2);
-  go('seva', 8.6, 10.8, 1.2); // почтальон идёт на площадь
+  go('seva', 8.6, 10.8, 1.2); // почтальон идёт по тропе на площадь
   await wait(1.5);
   await talk(INTRO_DAY);
 

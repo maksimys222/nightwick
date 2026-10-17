@@ -393,29 +393,43 @@ export function drawPlanter(g: Graphics) {
   g.rect(w.x - 2, w.y - 9, 4, 1).fill(0x3a6a90);
 }
 
-/** Наковальня на пне: молот рядом, на ней остывает раскалённая подкова. */
+/** Наковальня на пне: правильный силуэт (рог, пятка, талия, лапы), раскалённая заготовка, молот, клещи и ведро воды. */
 export function drawAnvil(g: Graphics) {
-  isoBox(g, 1, 1, 6, 0x6b4423, 0x5a3a1e, 0x9a6e40);
   const c = toScreen(0.5, 0.5);
-  // годовые кольца на срезе пня
-  g.ellipse(c.x, c.y - 6, 7, 3.2).fill(0xa87a48);
-  g.ellipse(c.x, c.y - 6, 4.5, 2).fill(0x9a6e40);
-  g.ellipse(c.x, c.y - 6, 2, 1).fill(0x8a5e34);
-  // наковальня: ножка, тело, рог
-  g.rect(c.x - 3, c.y - 10, 6, 4).fill(0x3a3a44);
-  g.rect(c.x - 4, c.y - 11, 8, 1).fill(0x2a2a34);
-  g.rect(c.x - 6, c.y - 14, 12, 3).fill(0x55555f);
-  g.poly([c.x + 6, c.y - 14, c.x + 11, c.y - 13, c.x + 6, c.y - 11]).fill(0x55555f);
-  g.rect(c.x - 6, c.y - 14, 12, 1).fill(0x8a8a96);
-  g.rect(c.x - 6, c.y - 11, 12, 1).fill(0x3a3a44);
-  // раскалённая подкова
-  g.rect(c.x - 3, c.y - 15, 4, 1).fill(0xff8a2a);
-  g.rect(c.x - 3, c.y - 16, 1, 1).fill(0xffc040);
-  g.rect(c.x, c.y - 16, 1, 1).fill(0xffc040);
-  // молот прислонён к пню
-  g.rect(c.x + 8, c.y - 9, 1, 8).fill(0x8a5a32);
-  g.rect(c.x + 6, c.y - 11, 5, 3).fill(0x5a5a66);
-  g.rect(c.x + 6, c.y - 11, 5, 1).fill(0x8a8a96);
+  const x = c.x, y = c.y;
+  g.ellipse(x, y + 1, 10, 3.5).fill({ color: 0x000000, alpha: 0.25 });
+  // пень с корой и годовыми кольцами
+  g.rect(x - 7, y - 7, 14, 8).fill(0x6b4423);
+  g.rect(x - 7, y - 7, 3, 8).fill(0x8a5a32);
+  g.rect(x + 4, y - 7, 3, 8).fill(0x4a2e18);
+  for (const yy of [-5, -2]) g.rect(x - 6, y + yy, 1, 2).fill(0x4a2e18);
+  g.ellipse(x, y - 7, 7, 3).fill(0xb08050);
+  g.ellipse(x, y - 7, 4.5, 1.9).fill(0x9a6a3a);
+  g.ellipse(x, y - 7, 2, 0.8).fill(0x8a5a2e);
+  // лапы и талия
+  g.poly([x - 5, y - 8, x + 4, y - 8, x + 2, y - 11, x - 3, y - 11]).fill(0x3a3a44);
+  g.rect(x - 2, y - 14, 4, 3).fill(0x44444e);
+  // тело: плоская рабочая грань сверху, пятка слева, рог справа
+  g.poly([x - 7, y - 14, x + 5, y - 14, x + 5, y - 17, x - 7, y - 17]).fill(0x55555f);
+  g.poly([x + 5, y - 17, x + 12, y - 15.5, x + 5, y - 14]).fill(0x4a4a54);   // рог
+  g.poly([x - 7, y - 17, x - 9, y - 17, x - 7, y - 15]).fill(0x4a4a54);       // пятка
+  g.rect(x - 7, y - 18, 12, 1).fill(0x9a9aa8);                                  // блик на грани
+  g.poly([x + 5, y - 18, x + 12, y - 15.5, x + 11, y - 15.5, x + 5, y - 17]).fill(0x8a8a96);
+  g.rect(x - 5, y - 16, 1, 1).fill(0x2a2a34);                                   // отверстие
+  // раскалённая заготовка
+  g.rect(x - 2, y - 19, 5, 1).fill(0xff8a2a);
+  g.rect(x - 1, y - 19, 2, 1).fill(0xffd36b);
+  // молот на пне и клещи
+  g.rect(x + 6, y - 9, 1, 7).fill(0x8a5a32);
+  g.rect(x + 4, y - 11, 5, 3).fill(0x5a5a66);
+  g.rect(x + 4, y - 11, 5, 1).fill(0x9a9aa8);
+  g.poly([x - 10, y - 2, x - 9, y - 2, x - 4, y - 12, x - 5, y - 12]).fill(0x3a3a44);
+  g.poly([x - 8, y - 2, x - 7, y - 2, x - 4, y - 12, x - 5, y - 12]).fill(0x2a2a34);
+  // ведро с водой
+  g.rect(x + 9, y - 5, 6, 6).fill(0x8a5a32);
+  g.rect(x + 9, y - 5, 2, 6).fill(0xa87a48);
+  g.rect(x + 9, y - 3, 6, 1).fill(0x5a5a66);
+  g.ellipse(x + 12, y - 5, 3, 1).fill(0x3a8ab0);
 }
 
 /** Стол Ники с картой: река, дороги, красный маршрут, чернильница с пером и свеча. */
@@ -608,29 +622,57 @@ export function drawSpark(g: Graphics, t: number) {
 
 // ---------- площадь из ролика и дом фонарщика ----------
 
-/** Фонтан: каменная чаша с бортиком, вода с бликами, колонна с верхней чашей, струи переливаются. */
+/** Фонтан: восьмигранная каменная чаша, вода с бликами и монетками, три яруса, струи падают дугами, брызги. */
 export function drawFountain(g: Graphics, t: number) {
-  isoBox(g, 2, 2, 6, 0xb8b2a8, 0x8e887e, 0x9a948a);
   const c = toScreen(1, 1);
-  // бортик и вода
-  g.ellipse(c.x, c.y - 6, 14, 7).fill(0xc8c2b8);
-  g.ellipse(c.x, c.y - 6, 12, 6).fill(0x2a9ac0);
-  g.ellipse(c.x - 2, c.y - 7, 8, 3.5).fill(0x3ab4d8);
-  const k = Math.floor(t * 4) % 3;
-  for (const [dx, dy] of [[-6, -6], [5, -4], [-1, -3]]) g.rect(c.x + dx + k, c.y + dy, 3, 1).fill(0xa8f0f8);
-  // колонна и верхняя чаша
-  g.rect(c.x - 2, c.y - 18, 4, 12).fill(0xb8b2a8);
-  g.rect(c.x - 2, c.y - 18, 1, 12).fill(0xd8d2c8);
-  g.rect(c.x + 1, c.y - 18, 1, 12).fill(0x8e887e);
-  g.ellipse(c.x, c.y - 18, 6, 2.5).fill(0xc8c2b8);
-  g.ellipse(c.x, c.y - 18.5, 4.5, 1.6).fill(0x3ab4d8);
-  // струи: сверху вверх и стекают вниз
-  const f = Math.floor(t * 6) % 2;
-  g.rect(c.x, c.y - 24 - f, 1, 5).fill(0xe0f8ff);
-  g.rect(c.x - 4 - f, c.y - 20, 1, 2).fill(0xbfe8ff);
-  g.rect(c.x + 4 + f, c.y - 20, 1, 2).fill(0xbfe8ff);
-  g.rect(c.x - 6, c.y - 16 + f, 1, 6).fill({ color: 0xbfe8ff, alpha: 0.8 });
-  g.rect(c.x + 6, c.y - 15 - f, 1, 6).fill({ color: 0xbfe8ff, alpha: 0.8 });
+  const cx = c.x, cy = c.y;
+  g.ellipse(cx, cy + 1, 17, 8).fill({ color: 0x000000, alpha: 0.2 });
+  // наружная чаша: бортик из камней (светлый верх, тёмный бок)
+  g.ellipse(cx, cy - 2, 16, 8).fill(0x8e887e);
+  g.ellipse(cx, cy - 5, 16, 8).fill(0xc6c0b4);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    g.rect(cx + Math.cos(a) * 15 - 0.5, cy - 5 + Math.sin(a) * 7.5 - 0.5, 1, 1).fill(0x9a948a);
+  }
+  // вода: тёмная в глубине, светлая к краю, блики бегут кругом
+  g.ellipse(cx, cy - 5, 13, 6.2).fill(0x2a8ab0);
+  g.ellipse(cx - 1, cy - 5.5, 10, 4.5).fill(0x3aaad0);
+  for (let i = 0; i < 5; i++) {
+    const a = t * 0.8 + i * 1.3;
+    g.rect(cx + Math.cos(a) * 9, cy - 5 + Math.sin(a) * 4, 3, 1).fill(0xa8f0f8);
+  }
+  g.rect(cx + 6, cy - 3, 1, 1).fill(0xffd23a); // монетки на дне
+  g.rect(cx - 7, cy - 4, 1, 1).fill(0xe0b040);
+  // круги от падающих струй
+  const ring = (t * 1.5) % 1;
+  g.ellipse(cx, cy - 5, 4 + ring * 6, 2 + ring * 3).stroke({ color: 0xd8f8ff, width: 1, alpha: 0.6 * (1 - ring) });
+  // колонна и средняя чаша
+  g.rect(cx - 2, cy - 17, 4, 12).fill(0xb8b2a6);
+  g.rect(cx - 2, cy - 17, 1, 12).fill(0xdcd6cc);
+  g.rect(cx + 1, cy - 17, 1, 12).fill(0x8e887e);
+  g.ellipse(cx, cy - 17, 7, 2.8).fill(0x9a948a);
+  g.ellipse(cx, cy - 18, 7, 2.6).fill(0xc6c0b4);
+  g.ellipse(cx, cy - 18.3, 5.2, 1.7).fill(0x3aaad0);
+  // верхняя чашечка
+  g.rect(cx - 1, cy - 24, 2, 6).fill(0xb8b2a6);
+  g.ellipse(cx, cy - 24, 3.5, 1.4).fill(0xc6c0b4);
+  g.ellipse(cx, cy - 24.3, 2.4, 0.9).fill(0x3aaad0);
+  // струи: вверх из верхней чаши и дугами вниз с краёв (бегущие капли)
+  const f = (t * 8) % 3;
+  g.rect(cx, cy - 30 + (f > 1.5 ? 1 : 0), 1, 6).fill(0xe8faff);
+  g.rect(cx - 1, cy - 31, 3, 1).fill({ color: 0xffffff, alpha: 0.8 });
+  for (const side of [-1, 1]) {
+    for (let k = 0; k < 4; k++) {
+      const p = ((t * 2 + k / 4) % 1);
+      g.rect(cx + side * (3 + p * 4), cy - 24 + p * p * 7, 1, 1).fill(0xcff4ff); // с верхней чаши на среднюю
+      g.rect(cx + side * (7 + p * 5), cy - 18 + p * p * 13, 1, 1.5).fill(0xbfeeff); // со средней в большую
+    }
+  }
+  // брызги у воды
+  for (let k = 0; k < 4; k++) {
+    const p = (t * 3 + k * 0.25) % 1;
+    g.rect(cx - 11 + k * 7, cy - 5 - Math.sin(p * Math.PI) * 2, 1, 1).fill({ color: 0xffffff, alpha: 0.7 });
+  }
 }
 
 /** Лоток Милы: прилавок, полосатый навес, корзинки с пирожками и вывеска-крендель. */

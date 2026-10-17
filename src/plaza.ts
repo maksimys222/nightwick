@@ -19,7 +19,8 @@ export function makePlaza(): Plaza {
 
   // мощёная площадь и дорожки от неё
   for (let y = 4; y < 12; y++) for (let x = 4; x < 14; x++) ground[idx(x, y)] = STONE;
-  for (let y = 12; y < h; y++) ground[idx(8, y)] = ground[idx(9, y)] = PATH;
+  // тропа почтальона: от угла площади изгибом уходит влево, в лес
+  for (const [x, y] of [[5, 12], [4, 12], [4, 13], [3, 13], [2, 13], [2, 14], [1, 14], [0, 14], [3, 12], [1, 13], [0, 13]]) ground[idx(x, y)] = PATH;
   for (let x = 14; x < w; x++) ground[idx(x, 7)] = PATH;
 
   const spots: [ResidentId, number, number][] = [

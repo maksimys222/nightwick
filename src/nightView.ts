@@ -487,6 +487,26 @@ function buildGround(w: World) {
       }
     }
   }
+  // края дорог: травка заходит на дорогу кустиками, по краю — камушки (чтобы тропа не была ровной полосой)
+  for (let y = -M; y < H + M; y++) {
+    for (let x = -M; x < W + M; x++) {
+      if (at(x, y) !== PATH) continue;
+      const b = bio(w, x, y);
+      for (const [nx, ny, ax, ay, bx, by] of [[0, -1, 0, 0, 1, 0], [-1, 0, 0, 0, 0, 1], [0, 1, 0, 1, 1, 1], [1, 0, 1, 0, 1, 1]] as const) {
+        if (at(x + nx, y + ny) !== GRASS) continue;
+        for (let k = 0; k < 4; k++) {
+          const u = (k + 0.5 + (hash(x * 3 + k, y + nx) - 0.5) * 0.6) / 4;
+          const p0 = toScreen(x + ax + (bx - ax) * u, y + ay + (by - ay) * u);
+          const inX = -nx * 0.12, inY = -ny * 0.12;
+          const q = toScreen(x + ax + (bx - ax) * u + inX, y + ay + (by - ay) * u + inY);
+          const r0 = hash(x + k * 7, y * 3 + ny);
+          if (r0 > 0.45) g.poly([p0.x - 3, p0.y, p0.x + 3, p0.y, q.x, q.y - 1]).fill(b.grass[k % 3]);
+          if (r0 > 0.8) g.rect(Math.round(q.x), Math.round(q.y), 1, 2).fill(b.tuft[0]);
+          if (r0 < 0.15) { g.ellipse(q.x, q.y, 1.5, 1).fill(0x9a948a); g.rect(q.x - 1, q.y - 1, 1, 1).fill(0xc6c0b4); }
+        }
+      }
+    }
+  }
   // берег у воды: обрыв земли (на свету и в тени) и белая пена у кромки
   const wet = (x: number, y: number) => at(x, y) === WATER || at(x, y) === BRIDGE;
   for (let y = -M; y < H + M; y++) {
