@@ -43,7 +43,8 @@ export function frames(name: string, w: number): Texture[] | undefined {
 
 /** Кадр фонарщика: стоит или идёт (4 кадра шага). */
 export function heroTex(moving: boolean, anim: number): Texture | undefined {
-  const walk = frames('hero_walk', 16);
+  const idle = tex.hero_idle;
+  const walk = frames('hero_walk', idle?.width ?? 24);
   if (moving && walk) return walk[Math.floor(anim * 8) % walk.length];
-  return tex.hero_idle ?? walk?.[0];
+  return idle ?? walk?.[0];
 }

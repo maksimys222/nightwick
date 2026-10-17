@@ -12,8 +12,6 @@ export class Figure extends Container {
   constructor() {
     super();
     this.addChild(this.g, this.pic);
-    // ноги — на строке 22 картинки 16×24: низ этой строки ставим в точку 0,0
-    this.pic.anchor.set(0.5, 23 / 24);
   }
 
   /** Фонарщик. Смотрит вправо, влево — отражённая картинка. */
@@ -23,6 +21,8 @@ export class Figure extends Container {
     this.pic.visible = !!t;
     if (!t) { drawPerson(this.g, face, anim, moving, 0x2b3a67, true, lantern); return; }
     this.pic.texture = t;
+    // ноги — на второй строке снизу (как в шаблоне): низ этой строки ставим в точку 0,0
+    this.pic.anchor.set(0.5, (t.height - 1) / t.height);
     this.pic.scale.x = face < 0 ? -1 : 1;
     this.g.ellipse(0, 0, 5, 2).fill({ color: 0x000000, alpha: 0.35 });
   }
