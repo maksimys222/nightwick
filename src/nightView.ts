@@ -12,7 +12,7 @@ import {
   drawHome, drawSleeper, drawFountain, drawStall, drawAnvil, drawEasel, drawSmoke,
 } from './draw';
 import type { View, Halo } from './render';
-import { art, heroTex } from './sprites';
+import { art, frames, heroTex } from './sprites';
 import { Figure } from './figure';
 import { BIOMES, GROUND, ROOFS } from './palette';
 
@@ -124,9 +124,18 @@ export class NightView implements View {
       });
     }
     for (const f of w.flowers) {
-      const g = new Graphics();
-      this.place(g, f.x + 0.5, f.y + 0.5);
-      dyn(() => String(f.stage), () => drawFlower(g.clear(), f));
+      // грядка: картинка (4 стадии в ленте 32×40) или заглушка; центр клетки — в точке (16, 32) кадра
+      const c = new Container(), g = new Graphics(), pic = new Sprite();
+      c.addChild(g, pic);
+      pic.position.set(-16, -32);
+      this.place(c, f.x + 0.5, f.y + 0.5);
+      dyn(() => String(f.stage), () => {
+        const fr = frames('flower', 32) ?? frames('flower_example', 32);
+        g.clear();
+        pic.visible = !!fr;
+        if (fr) pic.texture = fr[Math.min(fr.length - 1, f.stage)];
+        else drawFlower(g, f);
+      });
     }
     for (const h of w.houses) {
       const g = new Graphics();
