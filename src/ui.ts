@@ -449,7 +449,7 @@ export class UI {
     if (this.acc < 0.25) return;
     this.acc = 0;
     $('lumens').textContent = fmt(st.lumens);
-    $('rate').textContent = night ? `+${fmt(lumenRate())}/с` : '';
+    $('rate').textContent = night && lumenRate() > 0 && st.flow ? `+${fmt(lumenRate())}/с` : '';
     $('oil').textContent = fmt(st.oil);
     $('seeds').textContent = fmt(st.seeds);
     $('carry').textContent = fmt(st.carry);

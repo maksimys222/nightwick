@@ -78,6 +78,9 @@ body.in-menu #hud, body.in-menu #top, body.in-menu #keys, body.in-menu #prompt, 
   width: min(560px, 46vw);
 }
 #timer { display: flex; align-items: center; gap: 10px; padding: 6px 12px; width: 100%; }
+/* узкий экран: верхняя панель встаёт справа от счётчиков, а не поверх них */
+@media (max-width: 1100px) { #top { left: 236px; right: 12px; transform: none; width: auto; } }
+@media (max-width: 420px) { #top { left: 12px; top: auto; bottom: 40px; } }
 .t-lbl { color: var(--dim); font-size: 16px; }
 .t-bar { flex: 1; height: 12px; background: #1a1206; border: 2px solid #120c06; }
 #timer-fill { height: 100%; background: linear-gradient(#fff4a0, #f0b040); transition: width 0.2s linear; }

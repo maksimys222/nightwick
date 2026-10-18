@@ -402,6 +402,9 @@ export class NightView implements View {
       }
       if (best) arrow(best.x + 0.5, best.y + 0.5, 0xffd36b, 16);
     }
+    // бледно-голубая — к маяку, цели вылазки
+    const goal = this.w.lamps[this.w.goal];
+    if (goal && !burning(goal)) arrow(goal.x + 0.5, goal.y + 0.5, 0xcfe0ff, 25);
     if (st.pointTo && !st.met.includes(st.pointTo)) {
       const h = this.w.houses.find((x) => x.rid === st.pointTo);
       if (h) arrow(h.x + 1, h.y + 1, 0xff7ab8, 22);
@@ -485,7 +488,7 @@ export class NightView implements View {
     return root;
   }
 
-  /** Неизведанное — чёрное. За краем карты туман такой же, как у ближайшей клетки на краю. */
+  /** Неизведанное — чёрное. За краем карты — как у ближайшей клетки на краю, но не дальше двух клеток. */
   private drawFog() {
     const c = this.fogCanvas!, P = NightView.PAD;
     const g = c.getContext('2d')!;
@@ -495,7 +498,9 @@ export class NightView implements View {
       const ty = Math.min(H - 1, Math.max(0, y - P));
       for (let x = 0; x < c.width; x++) {
         const tx = Math.min(W - 1, Math.max(0, x - P));
-        img.data[(y * c.width + x) * 4 + 3] = st.known[ty * W + tx] ? 0 : 255;
+        // за краем карты туман открыт только на пару клеток от изведанного края — дальше лес тонет во тьме
+        const out = Math.max(P - x, x - P - (W - 1), P - y, y - P - (H - 1), 0);
+        img.data[(y * c.width + x) * 4 + 3] = st.known[ty * W + tx] && out <= 2 ? 0 : 255;
       }
     }
     g.putImageData(img, 0, 0);
